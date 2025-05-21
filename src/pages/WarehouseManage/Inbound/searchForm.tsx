@@ -1,3 +1,4 @@
+import { DEVICE_TYPE_OPTIONS } from '@/constants';
 import { INBOUND_STATUS } from '@/services/warehouse/inbound/typings.d';
 import { Col, DatePicker, Form, Input, Select } from 'antd';
 import HandlerSelect from '../Components/HandlerSelect';
@@ -19,7 +20,7 @@ export const searchForm = (
     <Col>
       <Form.Item name="status" label="状态">
         <Select
-          style={{ width: '140px' }}
+          style={{ width: '200px' }}
           placeholder="请选择状态"
           allowClear
           options={[
@@ -27,6 +28,16 @@ export const searchForm = (
             { label: '提交中', value: INBOUND_STATUS.COMMITING },
             { label: '已入库', value: INBOUND_STATUS.COMPLETED },
           ]}
+        />
+      </Form.Item>
+    </Col>
+    <Col>
+      <Form.Item name="device_type" label="设备类型">
+        <Select
+          style={{ width: '200px' }}
+          placeholder="请选择设备类型"
+          allowClear
+          options={DEVICE_TYPE_OPTIONS}
         />
       </Form.Item>
     </Col>

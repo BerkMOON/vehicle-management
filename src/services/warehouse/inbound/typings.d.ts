@@ -19,6 +19,7 @@ export interface InboundRecordItem {
   name: string;
   receivable_quantity: number;
   received_quantity: number;
+  device_type: string;
   status: {
     code: INBOUND_STATUS_CODE;
     name: string;

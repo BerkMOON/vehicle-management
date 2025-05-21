@@ -2,6 +2,7 @@ import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
 import CreateOrModifyForm from '@/components/BasicComponents/CreateOrModifyForm';
+import DeleteForm from '@/components/BasicComponents/DeleteForm';
 import { useModalControl } from '@/hooks/useModalControl';
 import { OutboundAPI } from '@/services/warehouse/outbound/OutboundController';
 import {
@@ -19,6 +20,7 @@ const OutboundList: React.FC = () => {
   const [form] = Form.useForm();
   const baseListRef = useRef<BaseListPageRef>(null);
   const createOrModifyModal = useModalControl();
+  const deleteModal = useModalControl();
   const [selectedOutboundRecord, setSelectedOutboundRecord] =
     useState<OutboundRecordItem | null>(null);
 
@@ -36,7 +38,8 @@ const OutboundList: React.FC = () => {
 
   const columns = getColumns({
     handleModalOpen: handleModalOpen,
-    createOrModifyModal: createOrModifyModal,
+    createOrModifyModal,
+    deleteModal,
   });
 
   const fetchOutboundData = async (params: OutboundRecordParams) => {
@@ -98,8 +101,18 @@ const OutboundList: React.FC = () => {
         record={selectedOutboundRecord}
         idMapKey="batch_id"
       >
-        <OutboundForm form={form} />
+        <OutboundForm form={form} isEdit={!!selectedOutboundRecord} />
       </CreateOrModifyForm>
+      <DeleteForm
+        modalVisible={deleteModal.visible}
+        onCancel={deleteModal.close}
+        refresh={() => baseListRef.current?.getData()}
+        params={{
+          batch_id: selectedOutboundRecord?.id,
+        }}
+        name="用户"
+        api={OutboundAPI.deleteRecord}
+      />
     </>
   );
 };

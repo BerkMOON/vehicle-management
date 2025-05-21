@@ -30,6 +30,9 @@ export const BatchInfo: React.FC<BatchInfoProps> = ({
         <Descriptions.Item label="入库人">
           {record?.creator_name}
         </Descriptions.Item>
+        <Descriptions.Item label="设备类型">
+          {record?.device_type}
+        </Descriptions.Item>
         <Descriptions.Item label="状态">
           {record?.status?.name}
         </Descriptions.Item>

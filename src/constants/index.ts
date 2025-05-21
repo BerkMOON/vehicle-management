@@ -82,3 +82,15 @@ export const TASK_STATUS_OPTIONS = [
   { label: TaskStatusLabel.Returned, value: TaskStatus.Returned },
   { label: TaskStatusLabel.Rejected, value: TaskStatus.Rejected },
 ];
+
+export enum DeviceType {
+  common = 'common',
+  audi = 'audi',
+  lincoln = 'lincoln',
+}
+
+export const DEVICE_TYPE_OPTIONS = [
+  { label: '通用型', value: DeviceType.common },
+  { label: '奥迪专用型', value: DeviceType.audi },
+  { label: '林肯专用型', value: DeviceType.lincoln },
+];

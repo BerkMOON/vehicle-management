@@ -1,15 +1,20 @@
 import CompanySelect from '@/components/BusinessComponents/CompanySelect';
 import StoreSelect from '@/components/BusinessComponents/StoreSelect';
-import { Form, Input } from 'antd';
+import { DEVICE_TYPE_OPTIONS } from '@/constants';
+import { Form, Input, Select } from 'antd';
 import type { FormInstance } from 'antd/es/form';
 import { useWatch } from 'antd/es/form/Form';
 import React from 'react';
 
 interface OutboundFormProps {
   form: FormInstance;
+  isEdit: boolean;
 }
 
-export const OutboundForm: React.FC<OutboundFormProps> = ({ form }) => {
+export const OutboundForm: React.FC<OutboundFormProps> = ({
+  form,
+  isEdit = false,
+}) => {
   const companyId = useWatch('company_id', form);
 
   return (
@@ -21,6 +26,24 @@ export const OutboundForm: React.FC<OutboundFormProps> = ({ form }) => {
       >
         <Input placeholder="请输入批次名称" />
       </Form.Item>
+      {!isEdit && (
+        <Form.Item
+          name="device_type"
+          label="设备类型"
+          rules={[
+            {
+              required: true,
+              message: '请选择设备类型',
+            },
+          ]}
+        >
+          <Select
+            placeholder="请选择设备类型"
+            allowClear
+            options={DEVICE_TYPE_OPTIONS}
+          />
+        </Form.Item>
+      )}
       <Form.Item
         name="company_id"
         label="选择公司"

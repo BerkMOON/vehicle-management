@@ -16,6 +16,7 @@ export interface StorageItem {
   scan_date: string;
   sn: string;
   status: StatusInfo;
+  device_type: string;
   out_time: string;
 }
 

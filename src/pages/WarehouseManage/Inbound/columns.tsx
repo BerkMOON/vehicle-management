@@ -1,3 +1,4 @@
+import { ModalControl } from '@/hooks/useModalControl';
 import {
   INBOUND_STATUS_CODE,
   InboundRecordItem,
@@ -7,7 +8,7 @@ import { history } from '@umijs/max';
 import { Button } from 'antd';
 
 export const getColumns = (props: ColumnsProps<InboundRecordItem>) => {
-  const { handleModalOpen, createOrModifyModal } = props;
+  const { handleModalOpen, createOrModifyModal, deleteModal } = props;
 
   return [
     {
@@ -19,6 +20,11 @@ export const getColumns = (props: ColumnsProps<InboundRecordItem>) => {
       title: '入库批次名称',
       dataIndex: 'name',
       key: 'name',
+    },
+    {
+      title: '设备类型',
+      dataIndex: 'device_type',
+      key: 'device_type',
     },
     {
       title: '应收数量',
@@ -57,6 +63,14 @@ export const getColumns = (props: ColumnsProps<InboundRecordItem>) => {
         <>
           {record.status.code === INBOUND_STATUS_CODE.PENDING ? (
             <>
+              <Button
+                type="link"
+                onClick={() =>
+                  handleModalOpen(deleteModal as ModalControl, record)
+                }
+              >
+                删除批次
+              </Button>
               <Button
                 type="link"
                 onClick={() => handleModalOpen(createOrModifyModal, record)}

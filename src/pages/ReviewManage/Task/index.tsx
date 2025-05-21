@@ -7,7 +7,7 @@ import type {
   AuditTaskItem,
   AuditTaskListParams,
 } from '@/services/audit/typings';
-import { Navigate, history, useAccess } from '@umijs/max';
+import { Navigate, useAccess } from '@umijs/max';
 import { Col, Form, Input, Result, Select } from 'antd';
 import React, { useRef } from 'react';
 
@@ -22,7 +22,11 @@ const TaskList: React.FC = () => {
       dataIndex: 'clue_id',
       key: 'clue_id',
       render: (text: string, record: AuditTaskItem) => (
-        <a onClick={() => history.push(`/review/task/${record.clue_id}`)}>
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href={`/review/task/${record.clue_id}`}
+        >
           {text}
         </a>
       ),

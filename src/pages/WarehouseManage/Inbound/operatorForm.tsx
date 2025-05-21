@@ -1,6 +1,7 @@
+import { DEVICE_TYPE_OPTIONS } from '@/constants';
 import { WarehouseUpload } from '@/pages/WarehouseManage/Components/WarehouseUpload';
 import { OssSence } from '@/services/warehouse/oss/typings.d';
-import { Form, FormInstance, Input, InputNumber } from 'antd';
+import { Form, FormInstance, Input, InputNumber, Select } from 'antd';
 
 interface InboundFormProps {
   form: FormInstance;
@@ -38,6 +39,24 @@ export const InboundForm: React.FC<InboundFormProps> = ({
           placeholder="请输入数量"
         />
       </Form.Item>
+      {!isEdit && (
+        <Form.Item
+          name="device_type"
+          label="设备类型"
+          rules={[
+            {
+              required: true,
+              message: '请选择设备类型',
+            },
+          ]}
+        >
+          <Select
+            placeholder="请选择设备类型"
+            allowClear
+            options={DEVICE_TYPE_OPTIONS}
+          />
+        </Form.Item>
+      )}
       <Form.Item
         label="入库文件"
         name="fileList"

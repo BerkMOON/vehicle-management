@@ -51,6 +51,11 @@ const InboundDetail: React.FC = () => {
       key: 'device_model',
     },
     {
+      title: '设备类型',
+      dataIndex: 'device_type',
+      key: 'device_type',
+    },
+    {
       title: '录入时间',
       dataIndex: 'create_time',
       key: 'create_time',
@@ -104,6 +109,9 @@ const InboundDetail: React.FC = () => {
         <Descriptions column={4}>
           <Descriptions.Item label="批次ID">{record?.id}</Descriptions.Item>
           <Descriptions.Item label="批次名称">{record?.name}</Descriptions.Item>
+          <Descriptions.Item label="设备类型">
+            {record?.device_type}
+          </Descriptions.Item>
           <Descriptions.Item label="入库上传表单">
             <a
               href={record?.excel_file_url}

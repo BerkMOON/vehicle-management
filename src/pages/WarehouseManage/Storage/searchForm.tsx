@@ -1,3 +1,4 @@
+import { DEVICE_TYPE_OPTIONS } from '@/constants';
 import { StorageStatus } from '@/services/warehouse/storage/typings.d';
 import { Col, DatePicker, Form, Input, Select } from 'antd';
 
@@ -26,9 +27,19 @@ export const searchForm = (
       </Form.Item>
     </Col>
     <Col>
+      <Form.Item name="device_type" label="设备类型">
+        <Select
+          style={{ width: '200px' }}
+          placeholder="请选择设备类型"
+          allowClear
+          options={DEVICE_TYPE_OPTIONS}
+        />
+      </Form.Item>
+    </Col>
+    <Col>
       <Form.Item name="status" label="状态">
         <Select
-          style={{ width: '194px' }}
+          style={{ width: '200px' }}
           placeholder="请选择状态"
           allowClear
           options={[

@@ -2,6 +2,7 @@ import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
 import CreateOrModifyForm from '@/components/BasicComponents/CreateOrModifyForm';
+import DeleteForm from '@/components/BasicComponents/DeleteForm';
 import { useModalControl } from '@/hooks/useModalControl';
 import { InboundAPI } from '@/services/warehouse/inbound/InboundController';
 import type {
@@ -19,6 +20,7 @@ const InboundList: React.FC = () => {
   const [form] = Form.useForm();
   const baseListRef = useRef<BaseListPageRef>(null);
   const createOrModifyModal = useModalControl();
+  const deleteModal = useModalControl();
   const [selectedInboundRecord, setSelectedInboundRecord] =
     useState<InboundRecordItem | null>(null);
 
@@ -36,7 +38,8 @@ const InboundList: React.FC = () => {
 
   const columns = getColumns({
     handleModalOpen: handleModalOpen,
-    createOrModifyModal: createOrModifyModal,
+    createOrModifyModal,
+    deleteModal,
   });
 
   const fetchInboundData = async (params: InboundRecordParams) => {
@@ -100,6 +103,16 @@ const InboundList: React.FC = () => {
       >
         <InboundForm form={form} isEdit={!!selectedInboundRecord}></InboundForm>
       </CreateOrModifyForm>
+      <DeleteForm
+        modalVisible={deleteModal.visible}
+        onCancel={deleteModal.close}
+        refresh={() => baseListRef.current?.getData()}
+        params={{
+          batch_id: selectedInboundRecord?.id,
+        }}
+        name="用户"
+        api={InboundAPI.deleteRecord}
+      />
     </>
   );
 };

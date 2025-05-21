@@ -1,3 +1,4 @@
+import { ModalControl } from '@/hooks/useModalControl';
 import { INBOUND_STATUS_CODE } from '@/services/warehouse/inbound/typings.d';
 import { OutboundRecordItem } from '@/services/warehouse/outbound/typings.d';
 import { StorageAPI } from '@/services/warehouse/storage/StorageController';
@@ -8,7 +9,7 @@ import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 
 export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
-  const { handleModalOpen, createOrModifyModal } = props;
+  const { handleModalOpen, createOrModifyModal, deleteModal } = props;
 
   const handleExport = async (record: OutboundRecordItem) => {
     try {
@@ -161,6 +162,11 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
       key: 'quantity',
     },
     {
+      title: '设备类型',
+      dataIndex: 'device_type',
+      key: 'device_type',
+    },
+    {
       title: '出库公司',
       dataIndex: 'company_name',
       key: 'company_name',
@@ -198,6 +204,14 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
         <>
           {record.status.code === INBOUND_STATUS_CODE.PENDING ? (
             <>
+              <Button
+                type="link"
+                onClick={() =>
+                  handleModalOpen(deleteModal as ModalControl, record)
+                }
+              >
+                删除批次
+              </Button>
               <Button
                 type="link"
                 onClick={() => handleModalOpen(createOrModifyModal, record)}

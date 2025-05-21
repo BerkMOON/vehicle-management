@@ -18,6 +18,9 @@ export const BatchInfo: React.FC<BatchInfoProps> = ({ record, tableData }) => {
         <Descriptions.Item label="出库公司">
           {record?.company_name}
         </Descriptions.Item>
+        <Descriptions.Item label="设备类型">
+          {record?.device_type}
+        </Descriptions.Item>
         <Descriptions.Item label="出库门店">
           {record?.store_name}
         </Descriptions.Item>

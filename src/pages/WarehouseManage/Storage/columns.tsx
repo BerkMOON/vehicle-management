@@ -15,6 +15,11 @@ export const getColumns = () => {
       key: 'status',
     },
     {
+      title: '设备类型',
+      dataIndex: 'device_type',
+      key: 'device_type',
+    },
+    {
       title: 'SN码',
       dataIndex: 'sn',
       key: 'sn',
@@ -62,7 +67,9 @@ export const getColumns = () => {
       key: 'outbound_batch_id',
       render: (text: string, record: any) => {
         return record.outbound_batch_id ? (
-          <a href={`/warehouse/outbound/${record.outbound_batch_id}`}>{text}</a>
+          <a href={`/warehouse/outbound/detail/${record.outbound_batch_id}`}>
+            {text}
+          </a>
         ) : (
           '未出库'
         );

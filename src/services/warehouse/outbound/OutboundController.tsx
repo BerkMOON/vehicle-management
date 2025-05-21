@@ -136,4 +136,16 @@ export const OutboundAPI = {
         params,
       },
     ),
+
+  /**
+   * 删除出库批次
+   * POST /api/admin/warehouse/outbound/batch/delete
+   * 接口ID：287644525
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-287644525
+   */
+  deleteRecord: (data: { batch_id: number }) =>
+    request<ResponseInfoType<null>>(`${API_PREFIX_BATCH}/delete`, {
+      method: 'POST',
+      data,
+    }),
 };

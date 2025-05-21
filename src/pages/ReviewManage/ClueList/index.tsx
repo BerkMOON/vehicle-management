@@ -6,7 +6,7 @@ import type {
   AuditClueItem,
   AuditClueListParams,
 } from '@/services/audit/typings';
-import { Navigate, history, useAccess } from '@umijs/max';
+import { Navigate, useAccess } from '@umijs/max';
 import { Col, Form, Input, Result } from 'antd';
 import React, { useRef } from 'react';
 
@@ -21,7 +21,11 @@ const ClueList: React.FC = () => {
       dataIndex: 'clue_id',
       key: 'clue_id',
       render: (text: string, record: AuditClueItem) => (
-        <a onClick={() => history.push(`/review/clue/${record.clue_id}`)}>
+        <a
+          href={`/review/clue/${record.clue_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           {text}
         </a>
       ),

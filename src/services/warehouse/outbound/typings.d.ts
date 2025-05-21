@@ -21,6 +21,7 @@ export interface OutboundRecordItem {
   store_id: string;
   company_id: string;
   company_name: string;
+  device_type: string;
   status: {
     code: INBOUND_STATUS_CODE;
     name: string;

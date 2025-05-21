@@ -56,6 +56,9 @@ const StorageDetail: React.FC = () => {
           <Descriptions.Item label="ICCID号">
             {detail?.icc_id}
           </Descriptions.Item>
+          <Descriptions.Item label="设备类型">
+            {detail?.device_type}
+          </Descriptions.Item>
           <Descriptions.Item label="入库时间">
             {detail?.create_time}
           </Descriptions.Item>
