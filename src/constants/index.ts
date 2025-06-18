@@ -93,6 +93,7 @@ export const TASK_STATUS_OPTIONS = [
 export enum DeviceType {
   common = 'common',
   audi = 'audi',
+  audiQ4 = 'audi_q4',
   lincoln = 'lincoln',
 }
 
@@ -100,4 +101,5 @@ export const DEVICE_TYPE_OPTIONS = [
   { label: '通用型', value: DeviceType.common },
   { label: '奥迪专用型', value: DeviceType.audi },
   { label: '林肯专用型', value: DeviceType.lincoln },
+  { label: '奥迪Q4专用型', value: DeviceType.audiQ4 },
 ];

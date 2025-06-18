@@ -1,0 +1,16 @@
+.chart-card-wrapper {
+  position: relative;
+  background-color: #fff;
+  display: inline-block; 
+  border-radius: 10px;
+  border: 1px solid #e1e8ed;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 600px;
+  padding: 18px 12px 12px 12px;
+  box-sizing: border-box;
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+  }
+}

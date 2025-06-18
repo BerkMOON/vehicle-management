@@ -15,7 +15,7 @@ export interface DeviceList {
 }
 
 export interface DeviceRequest extends PageInfoParams {
-  unreported?: boolean;
+  report_status?: 'reported' | 'unreported';
   endTime?: string;
   phone?: string;
   sn?: string;

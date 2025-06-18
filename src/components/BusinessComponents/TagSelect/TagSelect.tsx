@@ -1,6 +1,7 @@
 import { AUDIT_RESULT } from '@/constants';
 import { AuditAPI } from '@/services/audit/AuditController';
 import { AuditTagItem } from '@/services/audit/typings';
+import { isMobile } from '@/utils/useragent';
 import { Select, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 
@@ -52,7 +53,7 @@ export const TagSelect: React.FC<TagSelectProps> = ({
     <Select
       mode="multiple"
       allowClear
-      showSearch
+      showSearch={!isMobile}
       optionFilterProp="label"
       style={{ width: '100%', ...style }}
       placeholder={placeholder}

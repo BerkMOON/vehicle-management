@@ -2,7 +2,10 @@ import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
 import { AuditAPI } from '@/services/audit/AuditController';
-import type { AuditClueListParams } from '@/services/audit/typings';
+import type {
+  AuditClueItem,
+  AuditClueListParams,
+} from '@/services/audit/typings';
 import { Navigate, useAccess } from '@umijs/max';
 import { Col, Form, Input, Result } from 'antd';
 import React, { useRef } from 'react';
@@ -17,15 +20,15 @@ const AbnormalClueList: React.FC = () => {
       title: '线索ID',
       dataIndex: 'clue_id',
       key: 'clue_id',
-      // render: (text: string, record: AuditClueItem) => (
-      //   <a
-      //     href={`/review/clue/${record.clue_id}`}
-      //     target="_blank"
-      //     rel="noopener noreferrer"
-      //   >
-      //     {text}
-      //   </a>
-      // ),
+      render: (text: string, record: AuditClueItem) => (
+        <a
+          href={`/review/abnormalClue/${record.clue_id}?needAuditResult=false`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {text}
+        </a>
+      ),
     },
     {
       title: '设备ID',

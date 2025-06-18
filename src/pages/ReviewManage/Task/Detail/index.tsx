@@ -2,13 +2,17 @@ import { useRequest } from '@/hooks/useRequest';
 import { AuditAPI } from '@/services/audit/AuditController';
 import { parseVideoTime } from '@/utils/format';
 import { PageContainer } from '@ant-design/pro-components';
-import { Navigate, useAccess, useParams } from '@umijs/max';
+import { Navigate, useAccess, useParams, useSearchParams } from '@umijs/max';
 import { Card, Descriptions, Result, Spin } from 'antd';
 import React from 'react';
 import ReactPlayer from 'react-player';
 
 const TaskDetail: React.FC = () => {
   const { clueId } = useParams<{ clueId: string }>();
+  const [searchParams] = useSearchParams();
+  const needAuditResult = searchParams.has('needAuditResult')
+    ? searchParams.get('needAuditResult') === 'true'
+    : true; // 默认true
   const { isLogin, taskDetail } = useAccess();
   const taskDetailAccess = taskDetail();
 
@@ -17,7 +21,7 @@ const TaskDetail: React.FC = () => {
     immediateParams: {
       clue_id: clueId || '',
       needRecordDetail: true,
-      needAuditResult: true,
+      needAuditResult,
     },
   });
 
@@ -85,19 +89,21 @@ const TaskDetail: React.FC = () => {
             </Descriptions>
           </Card>
 
-          <Card title="审核结果" style={{ marginTop: 24 }}>
-            <Descriptions column={2}>
-              <Descriptions.Item label="审核结果">
-                {detail?.status.name}
-              </Descriptions.Item>
-              <Descriptions.Item label="审核标签">
-                {detail?.tag_list?.map((tag) => tag).join(', ')}
-              </Descriptions.Item>
-              <Descriptions.Item label="审核备注">
-                {detail?.note}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
+          {needAuditResult && (
+            <Card title="审核结果" style={{ marginTop: 24 }}>
+              <Descriptions column={2}>
+                <Descriptions.Item label="审核结果">
+                  {detail?.status.name}
+                </Descriptions.Item>
+                <Descriptions.Item label="审核标签">
+                  {detail?.tag_list?.map((tag) => tag).join(', ')}
+                </Descriptions.Item>
+                <Descriptions.Item label="审核备注">
+                  {detail?.note}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+          )}
         </Card>
       </Spin>
     </PageContainer>
