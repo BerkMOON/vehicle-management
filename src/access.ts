@@ -110,6 +110,15 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
         (child) => child.code === PERMISSION_CODE.AUDIT_LIST,
       );
     },
+    // 黑名单管理
+    auditBlackList: () => {
+      const auditModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.AUDIT_MODULE,
+      );
+      return !!auditModule?.children.find(
+        (child) => child.code === PERMISSION_CODE.AUDIT_BLACK_LIST,
+      );
+    },
     // 处理人管理
     handlerList: () => {
       const auditModule = initialState?.authority?.find(
@@ -196,6 +205,14 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
       );
       return !!deviceModule?.children.find(
         (child) => child.code === PERMISSION_CODE.BUSSINESS_DEVICE_MODULE,
+      );
+    },
+    lossReminder: () => {
+      const deviceModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.DEVICE_MODULE,
+      );
+      return !!deviceModule?.children.find(
+        (child) => child.code === PERMISSION_CODE.LOSS_REMINDER,
       );
     },
     // 设备OTA

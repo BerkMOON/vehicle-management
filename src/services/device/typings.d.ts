@@ -26,3 +26,32 @@ export interface DeviceRequest extends PageInfoParams {
   status?: string;
   vin?: string;
 }
+
+export interface LossRequest extends PageInfoParams {
+  company_id?: number;
+  device_id?: string;
+  end_time?: string;
+  sn?: string;
+  start_time?: string;
+  store_id?: number;
+}
+
+export interface NearbyPoint {
+  address: string;
+  city: string;
+  distance: number | number;
+  district: string;
+  name: string;
+}
+export interface LossInfo {
+  device_id: string;
+  company_name: string;
+  store_name: string;
+  sn: string;
+  trigger_time: string;
+  location: string;
+  nearby_points: NearbyPoint;
+}
+export interface LossResponse extends BaseListInfo {
+  record_list: LossInfo[];
+}

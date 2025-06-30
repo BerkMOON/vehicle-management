@@ -14,10 +14,12 @@ import {
   AuditTaskList,
   AuditTaskListParams,
   AuditTaskParams,
+  BlackListResponse,
   BusinessTaskParams,
 } from './typings';
 
 const API_PREFIX = '/api/admin/audit';
+const BLACK_API_PREFIX = `${API_PREFIX}/blacklist/device`;
 export const AuditAPI = {
   /**
    * 任务获取
@@ -130,4 +132,27 @@ export const AuditAPI = {
         params,
       },
     ),
+
+  /**
+   * 查询设备黑名单
+   * GET /api/admin/audit/blacklist/device/list
+   * 接口ID：311405675
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-311405675
+   */
+  getBlackList: () =>
+    request<ResponseInfoType<BlackListResponse>>(`${BLACK_API_PREFIX}/list`, {
+      method: 'GET',
+    }),
+
+  addBlackDevice: (params: { device_id: string }) =>
+    request<ResponseInfoType<null>>(`${BLACK_API_PREFIX}/add`, {
+      method: 'POST',
+      data: params,
+    }),
+
+  deleteBlackDevice: (params: { device_id: string }) =>
+    request<ResponseInfoType<null>>(`${BLACK_API_PREFIX}/delete`, {
+      method: 'POST',
+      data: params,
+    }),
 };

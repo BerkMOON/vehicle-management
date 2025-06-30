@@ -142,3 +142,12 @@ export interface BusinessTaskItem {
 export interface BusinessTaskList extends BaseListInfo {
   task_list: BusinessTaskItem[];
 }
+
+export interface BlackListInfo {
+  device_id: string;
+  set_time: string;
+}
+
+export interface BlackListResponse {
+  item_list: BlackListInfo[];
+}

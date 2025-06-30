@@ -127,6 +127,12 @@ export default defineConfig({
           access: 'clueList',
           hideInMenu: true,
         },
+        {
+          path: '/review/black',
+          name: '黑名单列表',
+          component: './ReviewManage/BlackList',
+          access: 'clueList',
+        },
       ],
     },
     {
@@ -192,6 +198,12 @@ export default defineConfig({
           name: '设备信息',
           component: './EquipmentManage/DeviceList',
           access: 'deviceInfoList',
+        },
+        {
+          path: '/equipment/loss',
+          name: '流失提醒',
+          component: './EquipmentManage/LossReminder',
+          access: 'lossReminder',
         },
       ],
     },
