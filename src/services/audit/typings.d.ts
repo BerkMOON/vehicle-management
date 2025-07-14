@@ -115,9 +115,11 @@ export interface AuditHandlerItem {
 export interface BusinessTaskParams {
   page: number;
   limit: number;
-  status: string;
-  company_id: number;
-  store_id: number;
+  status?: string;
+  company_id?: number;
+  store_id?: number;
+  start_time?: string;
+  end_time?: string;
 }
 
 export interface BusinessTaskItem {

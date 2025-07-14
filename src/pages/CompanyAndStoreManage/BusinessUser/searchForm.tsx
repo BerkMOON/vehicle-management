@@ -23,12 +23,12 @@ export const searchForm = (
     </Col>
     <Col>
       <Form.Item name="company_id" label="公司">
-        <CompanySelect style={{ width: '194' }} placeholder="请选择公司" />
+        <CompanySelect style={{ width: '194px' }} placeholder="请选择公司" />
       </Form.Item>
     </Col>
     <Col>
       <Form.Item name="store_id" label="门店">
-        <StoreSelect style={{ width: '194' }} placeholder="请选择门店" />
+        <StoreSelect style={{ width: '194px' }} placeholder="请选择门店" />
       </Form.Item>
     </Col>
     <Col>

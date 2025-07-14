@@ -34,9 +34,9 @@ export const request = {
     errorHandler: (error: any) => {
       // 统一错误处理
       if (error.response?.status === 401) {
-        const currentPath = window.location.pathname;
-        localStorage.setItem('redirectPath', currentPath);
-        window.location.href = '/login';
+        // const currentPath = window.location.pathname;
+        // localStorage.setItem('redirectPath', currentPath);
+        // window.location.href = '/login';
       }
     },
   },

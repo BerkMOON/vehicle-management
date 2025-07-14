@@ -166,6 +166,12 @@ export default defineConfig({
           component: './CompanyAndStoreManage/Store/GenCode',
           access: 'storeGenCode',
         },
+        {
+          path: '/cas/report',
+          name: '门店周报汇总',
+          component: './CompanyAndStoreManage/Report',
+          access: 'businessUser',
+        },
       ],
     },
     {

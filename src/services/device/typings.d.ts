@@ -20,6 +20,8 @@ export interface DeviceRequest extends PageInfoParams {
   phone?: string;
   sn?: string;
   startTime?: string;
+  onset_start_time?: string;
+  onset_end_time?: string;
   /**
    * 状态，init未绑定，bound已绑定
    */

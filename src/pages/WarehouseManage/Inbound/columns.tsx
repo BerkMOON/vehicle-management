@@ -59,6 +59,7 @@ export const getColumns = (props: ColumnsProps<InboundRecordItem>) => {
     {
       title: '操作',
       key: 'action',
+      fixed: 'right',
       render: (_: any, record: InboundRecordItem) => (
         <>
           {record.status.code === INBOUND_STATUS_CODE.PENDING ? (
