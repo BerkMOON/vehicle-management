@@ -11,7 +11,7 @@ const BaseChart = forwardRef<any, ChartProps>((props, ref) => {
     data,
     angleField: 'value',
     colorField: 'type',
-    radius: 0.8,
+    radius: 0.4,
     label: {
       text: (d: { type: string; value: number }) => `${d.type}\n ${d.value}`,
       style: {
