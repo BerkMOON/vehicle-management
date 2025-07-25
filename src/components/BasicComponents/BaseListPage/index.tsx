@@ -2,6 +2,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { useSearchParams } from '@umijs/max';
 import type { TableProps } from 'antd';
 import { Button, Form, Row, Space, Table } from 'antd';
+import { random } from 'lodash';
 import React, {
   forwardRef,
   useCallback,
@@ -218,7 +219,11 @@ const BaseListPage = forwardRef<BaseListPageRef, BaseListPageProps>(
 
         <Table<any>
           loading={loading}
-          rowKey={(record) => record.id || record.role_id || record.user_id}
+          rowKey={(record) => {
+            return (
+              (record.id || record.role_id || record.user_id) + random(1000)
+            );
+          }}
           columns={columns}
           dataSource={data}
           scroll={{ x: 'max-content' }}

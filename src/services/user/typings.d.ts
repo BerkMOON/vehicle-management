@@ -9,8 +9,15 @@ export interface UserInfo {
   department: string;
   user_id: string;
   role_name?: string;
+  role_list?: RoleList[];
 }
-
+export interface RoleList {
+  company_id: number;
+  company_name?: string;
+  role: Role;
+  store_id: number;
+  store_name?: string;
+}
 export interface InterfaceResult<T> {
   response_status: {
     code: number;

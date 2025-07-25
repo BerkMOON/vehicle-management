@@ -70,7 +70,7 @@ const RelationList: React.FC = () => {
       <BaseListPage
         ref={baseListRef}
         title="设备关联列表"
-        columns={columns}
+        columns={columns as any}
         searchFormItems={searchForm}
         fetchData={fetchEquipmentRelationData}
         defaultSearchParams={DEFAULT_SEARCH_PARAMS}

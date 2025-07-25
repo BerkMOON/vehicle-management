@@ -1,6 +1,7 @@
 export enum PERMISSION_CODE {
   USER_MODULE = 'user_module',
   BUSINESS_USER_MANAGER = 'business_user_manager',
+  BUSINESS_ROLE = 'query_all_business_role',
   USER_MANAGER = 'user_manager',
   ROLE_MANAGER = 'role_manager',
   AUDIT_MODULE = 'audit_module',

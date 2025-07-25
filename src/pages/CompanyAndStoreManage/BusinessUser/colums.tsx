@@ -1,5 +1,5 @@
 import { ModalControl } from '@/hooks/useModalControl';
-import { UserInfo } from '@/services/user/typings';
+import { RoleList, UserInfo } from '@/services/user/typings';
 import { ColumnsProps } from '@/types/common';
 import { Divider } from 'antd';
 
@@ -22,15 +22,28 @@ export const getColumns = (props: ColumnsProps<UserInfo>) => {
     },
     {
       title: '公司',
-      dataIndex: 'company_name',
+      dataIndex: 'role_list',
+      render: (roleList: RoleList[]) => {
+        return roleList.map((item, key) => (
+          <div key={key}>{item.company_name}</div>
+        ));
+      },
     },
     {
       title: '门店',
-      dataIndex: 'store_name',
+      dataIndex: 'role_list',
+      render: (roleList: RoleList[]) => {
+        return roleList.map((item, key) => (
+          <div key={key}>{item.store_name}</div>
+        ));
+      },
     },
     {
       title: '角色',
-      dataIndex: 'role_name',
+      dataIndex: 'role_list',
+      render: (roleList: RoleList[]) => {
+        return roleList.map((item, key) => <div key={key}>{item.role}</div>);
+      },
     },
     {
       title: '用户状态',

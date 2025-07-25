@@ -1,6 +1,3 @@
-import CompanySelect from '@/components/BusinessComponents/CompanySelect';
-import RoleSelect from '@/components/BusinessComponents/RoleSelect';
-import StoreSelect from '@/components/BusinessComponents/StoreSelect';
 import { COMMON_STATUS } from '@/constants';
 import { Col, Form, Input, Select } from 'antd';
 
@@ -21,7 +18,7 @@ export const searchForm = (
         <Input placeholder="请输入邮箱" allowClear />
       </Form.Item>
     </Col>
-    <Col>
+    {/* <Col>
       <Form.Item name="company_id" label="公司">
         <CompanySelect style={{ width: '194px' }} placeholder="请选择公司" />
       </Form.Item>
@@ -33,9 +30,9 @@ export const searchForm = (
     </Col>
     <Col>
       <Form.Item name="role" label="角色">
-        <RoleSelect placeholder="请选择角色" isBusinessRole={true} />
+        <RoleSelect style={{ width: '194px' }} placeholder="请选择角色" isBusinessRole={true} />
       </Form.Item>
-    </Col>
+    </Col> */}
     <Col>
       <Form.Item name="status" label="用户状态">
         <Select

@@ -25,6 +25,17 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
         (child) => child.code === PERMISSION_CODE.BUSINESS_USER_MANAGER,
       );
     },
+    // 门店角色管理
+    businessRole: () => {
+      const userModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.USER_MODULE,
+      );
+      return !!userModule?.children
+        .find((child) => child.code === PERMISSION_CODE.BUSINESS_USER_MANAGER)
+        ?.endpoints.find(
+          (child) => child.code === PERMISSION_CODE.BUSINESS_ROLE,
+        );
+    },
     // 角色管理
     roleList: () => {
       const userModule = initialState?.authority?.find(

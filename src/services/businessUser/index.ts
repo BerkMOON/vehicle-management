@@ -5,6 +5,7 @@ import {
   GetAllBusinessRoleResponse,
   GetAllBusinessUsersRequest,
   GetAllBusinessUsersResponse,
+  GetUserRolesResponse,
   RoleRequest,
   StatusRequest,
   UpdateRequest,
@@ -58,12 +59,11 @@ export const BusinessUserAPI = {
    * 接口ID：undefined
    * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-undefined
    */
-  Role: (params: RoleRequest) =>
-    request<ResponseInfoType<null>>(`${prefix}/role`, {
+  updateRole: (params: RoleRequest) =>
+    request<ResponseInfoType<null>>(`${prefix}/updateUserRoles`, {
       method: 'POST',
       data: params,
     }),
-
   /**
    * b端权限列表
    * GET /api/admin/user/business/getAllBusinessRole
@@ -89,5 +89,17 @@ export const BusinessUserAPI = {
     request<ResponseInfoType<null>>(`${prefix}/create`, {
       method: 'POST',
       data: params,
+    }),
+
+  /**
+   * b端用户权限关系列表
+   * GET /api/admin/user/business/getUserRoles
+   * 接口ID：325743716
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-325743716
+   */
+  getUserRoles: (params: GetAllBusinessUsersRequest) =>
+    request<ResponseInfoType<GetUserRolesResponse>>(`${prefix}/getUserRoles`, {
+      method: 'GET',
+      params: params,
     }),
 };

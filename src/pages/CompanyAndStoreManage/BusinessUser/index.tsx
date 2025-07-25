@@ -11,7 +11,7 @@ import { Navigate, useAccess } from '@umijs/max';
 import { Form, Result } from 'antd';
 import React, { useRef } from 'react';
 import { getColumns } from './colums';
-import { BusinessUserForm, updateRoleForm } from './opreatorForm';
+import { BusinessUserForm, UpdateRoleForm } from './opreatorForm';
 import { searchForm } from './searchForm';
 
 const DEFAULT_SEARCH_PARAMS = {
@@ -19,14 +19,15 @@ const DEFAULT_SEARCH_PARAMS = {
 };
 
 const TableList: React.FC = () => {
-  const { isLogin, userList } = useAccess();
-  const userListAccess = userList();
+  const { isLogin, businessUser } = useAccess();
+  const businessUserAccess = businessUser();
   const baseListRef = useRef<BaseListPageRef>(null);
   const createOrModifyModal = useModalControl();
   const deleteModal = useModalControl();
   const updateRoleModal = useModalControl();
   const [selectedUser, setSelectedUser] = React.useState<UserInfo | null>(null);
   const [form] = Form.useForm();
+  const [formInstance] = Form.useForm();
 
   const handleModalOpen = (
     modalControl: ReturnType<typeof useModalControl>,
@@ -47,6 +48,13 @@ const TableList: React.FC = () => {
     updateRoleModal,
   });
 
+  const handleFormValues = (record: Record<string, any>) => {
+    return {
+      ...record,
+      username: selectedUser?.username,
+    };
+  };
+
   const fetchUserData = async (params: any) => {
     const { data } = await BusinessUserAPI.getAllBusinessUsers(params);
     return {
@@ -59,7 +67,7 @@ const TableList: React.FC = () => {
     return <Navigate to="/login" />;
   }
 
-  if (!userListAccess) {
+  if (!businessUserAccess) {
     return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
@@ -105,10 +113,7 @@ const TableList: React.FC = () => {
         idMapValue="id"
         ownForm={form}
       >
-        <BusinessUserForm
-          form={form}
-          isModify={!!selectedUser}
-        ></BusinessUserForm>
+        <BusinessUserForm isModify={!!selectedUser}></BusinessUserForm>
       </CreateOrModifyForm>
       <CreateOrModifyForm
         modalVisible={updateRoleModal.visible}
@@ -121,12 +126,17 @@ const TableList: React.FC = () => {
           title: '用户',
           successMsg: '修改角色信息成功',
         }}
-        api={BusinessUserAPI.Role}
+        api={BusinessUserAPI.updateRole}
         record={selectedUser}
         idMapKey="user_id"
         idMapValue="id"
+        operatorFields={handleFormValues}
+        ownForm={formInstance}
       >
-        {updateRoleForm(selectedUser?.role_name || '')}
+        <UpdateRoleForm
+          form={formInstance}
+          roleList={selectedUser?.role_list}
+        />
       </CreateOrModifyForm>
     </>
   );

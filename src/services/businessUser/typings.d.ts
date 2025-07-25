@@ -38,6 +38,11 @@ export interface GetAllBusinessUsersResponse {
   user_list: BusinessUserInfo[];
 }
 
+export interface GetUserRolesResponse {
+  meta: PageInfo;
+  role_list: BusinessUserInfo[];
+}
+
 // 更新用户状态 请求参数
 export interface StatusRequest {
   user_id: number;

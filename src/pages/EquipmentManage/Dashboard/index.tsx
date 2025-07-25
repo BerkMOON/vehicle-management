@@ -1,7 +1,14 @@
 import ChartCard from '@/components/ChartComponents/ChartCard';
+import { Navigate, useAccess } from '@umijs/max';
 import { Card } from 'antd';
 
 const Dashboard: React.FC = () => {
+  const { isLogin } = useAccess();
+
+  if (!isLogin) {
+    return <Navigate to="/login" />;
+  }
+
   return (
     <div style={{ display: 'flex', justifyContent: 'space-around' }}>
       <Card>
