@@ -9,6 +9,7 @@ export interface AuditTaskDetailParams {
   clue_id: string;
   needRecordDetail?: boolean;
   needAuditResult?: boolean;
+  needMachineAuditResult?: boolean;
 }
 
 export interface AuditTaskDetail {
@@ -35,6 +36,19 @@ export interface AuditTaskDetail {
   ext_info2: string;
   gps: string;
   tag_list: string[];
+  machine_audit_result: {
+    overall_score: number;
+    sub_scores: {
+      code: string;
+      name: string;
+      score: number;
+      weight: number;
+    }[];
+    tags: {
+      code: string;
+      name: string;
+    }[];
+  };
 }
 
 export interface AuditTaskParams {

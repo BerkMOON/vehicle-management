@@ -22,6 +22,7 @@ const TaskDetail: React.FC = () => {
       clue_id: clueId || '',
       needRecordDetail: true,
       needAuditResult,
+      needMachineAuditResult: needAuditResult,
     },
   });
 
@@ -100,6 +101,36 @@ const TaskDetail: React.FC = () => {
                 </Descriptions.Item>
                 <Descriptions.Item label="审核备注">
                   {detail?.note}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+          )}
+
+          {needAuditResult && detail?.machine_audit_result?.overall_score && (
+            <Card title="审核评分" style={{ marginTop: 24 }}>
+              <Descriptions column={2}>
+                <Descriptions.Item label="审核评分">
+                  {detail?.machine_audit_result?.overall_score / 100}分(0 ~
+                  100分)
+                </Descriptions.Item>
+                <Descriptions.Item label="审核子评分">
+                  <div>
+                    {detail?.machine_audit_result?.sub_scores?.map(
+                      (subScore) => (
+                        <div key={subScore.code}>
+                          {subScore.name}: {subScore.score / 100}分(
+                          {subScore.weight}分权重)
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </Descriptions.Item>
+                <Descriptions.Item label="审核标签">
+                  <div>
+                    {detail?.machine_audit_result?.tags?.map((tag) => (
+                      <div key={tag.code}>{tag.name}</div>
+                    ))}
+                  </div>
                 </Descriptions.Item>
               </Descriptions>
             </Card>

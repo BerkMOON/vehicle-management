@@ -47,6 +47,7 @@ const AuditPage: React.FC = () => {
         getAuditTaskDetail({
           clue_id: data.clue_id,
           needRecordDetail: true,
+          needMachineAuditResult: true,
         });
       }
     },
@@ -115,6 +116,11 @@ const AuditPage: React.FC = () => {
             />
             <div style={{ marginTop: 12 }}>
               触发时间点：{parseVideoTime(auditTaskDetail?.video_path)}
+            </div>
+            <div>
+              审核任务评分：
+              {auditTaskDetail?.machine_audit_result?.overall_score / 100}分(0 ~
+              100分)
             </div>
           </Card>
           <AuditForm detail={auditTaskDetail} onFinished={onFinish} />

@@ -9,7 +9,7 @@ import type {
   AuditTaskListParams,
 } from '@/services/audit/typings';
 import { Navigate, useAccess } from '@umijs/max';
-import { Col, Form, Input, Result } from 'antd';
+import { Col, Form, Input, Result, Select } from 'antd';
 import React, { useRef } from 'react';
 
 const TaskList: React.FC = () => {
@@ -79,6 +79,18 @@ const TaskList: React.FC = () => {
       <Col>
         <Form.Item name="handler_id" label="处理人">
           <HandlerSelect />
+        </Form.Item>
+      </Col>
+      <Col>
+        <Form.Item hidden name="status" label="状态">
+          <Select
+            options={[
+              {
+                label: '待确定',
+                value: AUDIT_RESULT_CODE.UNDETERMINE,
+              },
+            ]}
+          />
         </Form.Item>
       </Col>
     </>
