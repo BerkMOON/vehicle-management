@@ -4,7 +4,7 @@ import { AuditAPI } from '@/services/audit/AuditController';
 import { parseVideoTime } from '@/utils/format';
 import { PageContainer } from '@ant-design/pro-components';
 import { Navigate, useAccess, useParams } from '@umijs/max';
-import { Card, Result, Spin } from 'antd';
+import { Card, Descriptions, Result, Spin } from 'antd';
 import React from 'react';
 import ReactPlayer from 'react-player';
 import AuditForm from '../../Components/AuditForm';
@@ -24,6 +24,7 @@ const TaskDetail: React.FC = () => {
       clue_id: clueId || '',
       needRecordDetail: true,
       needAuditResult: true,
+      needMachineAuditResult: true,
     },
   });
 
@@ -56,12 +57,56 @@ const TaskDetail: React.FC = () => {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Card title="视频内容" style={{ marginBottom: 24 }}>
-              <ReactPlayer url={detail.video_url} controls playbackRate={2} />
-              <div style={{ marginTop: 12 }}>
-                触发时间点：{parseVideoTime(detail?.video_path)}
+            <Card
+              title="视频内容"
+              style={{
+                marginBottom: 24,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ReactPlayer url={detail.video_url} controls playbackRate={2} />
+                <div style={{ marginTop: 12 }}>
+                  触发时间点：{parseVideoTime(detail?.video_path)}
+                </div>
+                {detail?.machine_audit_result?.overall_score && (
+                  <Card title="审核评分" style={{ marginTop: 24 }}>
+                    <Descriptions column={4}>
+                      <Descriptions.Item label="审核评分">
+                        {detail?.machine_audit_result?.overall_score / 100}分(0
+                        ~ 100分)
+                      </Descriptions.Item>
+                      <Descriptions.Item label="审核子评分">
+                        <div>
+                          {detail?.machine_audit_result?.sub_scores?.map(
+                            (subScore) => (
+                              <div key={subScore.code}>
+                                {subScore.name}: {subScore.score / 100}分(
+                                {subScore.weight}分权重)
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="审核标签">
+                        <div>
+                          {detail?.machine_audit_result?.tags?.map((tag) => (
+                            <div key={tag.code}>{tag.name}</div>
+                          ))}
+                        </div>
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </Card>
+                )}
               </div>
             </Card>
             {detail?.status.code === AUDIT_RESULT_CODE.UNDETERMINE && (

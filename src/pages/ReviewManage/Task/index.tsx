@@ -91,6 +91,7 @@ const TaskList: React.FC = () => {
               { label: '通过', value: 1 },
               { label: '未通过', value: 2 },
               { label: '待确定', value: 4 },
+              { label: '机审未通过', value: 90 },
             ]}
           />
         </Form.Item>

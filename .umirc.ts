@@ -293,8 +293,8 @@ export default defineConfig({
   proxy: {
     '/api': {
       // 标识需要进行转换的请求的url
-      target: 'http://47.121.134.143:8888', // 服务端域名
-      //   target: 'https://eda.ai-kaka.com:443',
+      //   target: 'http://47.121.134.143:8888', // 服务端域名
+      target: 'https://eda.ai-kaka.com:443',
       changeOrigin: true, // 允许域名进行转换
     },
   },
