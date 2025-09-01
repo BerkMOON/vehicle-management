@@ -98,6 +98,7 @@ export enum DeviceType {
   lhws = 'landRover_WeiShi',
   lhX = 'landRover_XELXFL',
   lhls = 'landRover_LanSheng',
+  lsfx = 'landRover_Discovery',
 }
 
 export const DEVICE_TYPE_OPTIONS = [
@@ -108,4 +109,5 @@ export const DEVICE_TYPE_OPTIONS = [
   { label: '路虎卫士', value: DeviceType.lhws },
   { label: '路虎xel/xfl', value: DeviceType.lhX },
   { label: '路虎揽胜', value: DeviceType.lhls },
+  { label: '路虎发运/发现', value: DeviceType.lsfx },
 ];

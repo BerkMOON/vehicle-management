@@ -35,31 +35,41 @@ const Report: React.FC = () => {
   const [weeklyTasks, setWeeklyTasks] = useState<AuditTaskItem[]>([]);
   const [lossList, setLossList] = useState<LossInfo[]>([]);
 
-  const startDate = dayjs()
-    .startOf('isoWeek')
-    .subtract(7, 'day')
-    .format('YYYY-MM-DD HH:mm:ss');
-  const endDate = dayjs()
-    .endOf('isoWeek')
-    .subtract(7, 'day')
-    .format('YYYY-MM-DD HH:mm:ss');
+  // 获取默认时间范围（上周）
+  const getDefaultDateRange = () => {
+    const startDate = dayjs()
+      .startOf('isoWeek')
+      .subtract(7, 'day')
+      .format('YYYY-MM-DD HH:mm:ss');
+    const endDate = dayjs()
+      .endOf('isoWeek')
+      .subtract(7, 'day')
+      .format('YYYY-MM-DD HH:mm:ss');
+    return { startDate, endDate };
+  };
+
+  const [dateRange, setDateRange] = useState(getDefaultDateRange());
 
   const fetchDeviceStats = async (params: any = {}) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { dateRange, ...apiParams } = params;
     setLoading(true);
     try {
       const [reportedDevices, reportedUnboundDevices] = await Promise.all([
         DeviceAPI.getDeviceList({
-          ...params,
+          ...apiParams,
           limit: 1,
           page: 1,
           report_status: 'reported',
+          onset_end_time: dateRange?.endDate,
         }),
         DeviceAPI.getDeviceList({
-          ...params,
+          ...apiParams,
           limit: 100,
           page: 1,
           status: 'init',
           report_status: 'reported',
+          onset_end_time: dateRange?.endDate,
         }),
       ]);
 
@@ -76,10 +86,11 @@ const Report: React.FC = () => {
   };
 
   const fetchWeekDeviceStats = async (params: any = {}) => {
+    const { dateRange, ...apiParams } = params;
     const weekParams = {
-      ...params,
-      onset_start_time: startDate,
-      onset_end_time: endDate,
+      ...apiParams,
+      onset_start_time: dateRange?.startDate,
+      onset_end_time: dateRange?.endDate,
     };
     setLoading(true);
     try {
@@ -104,12 +115,13 @@ const Report: React.FC = () => {
 
   const fetchWeeklyTasks = async (params: any = {}) => {
     try {
+      const { dateRange, ...apiParams } = params;
       const { data } = await AuditAPI.getBTaskList({
         page: 1,
         limit: 100,
-        store_id: params.store_id || 0,
-        start_time: startDate,
-        end_time: endDate,
+        store_id: apiParams.store_id || 0,
+        start_time: dateRange.startDate,
+        end_time: dateRange.endDate,
       });
 
       setWeeklyTasks(data.task_list);
@@ -119,10 +131,11 @@ const Report: React.FC = () => {
   };
 
   const fetchLossData = async (params: any) => {
+    const { dateRange, ...apiParams } = params;
     const { data } = await DeviceAPI.getLossNotifications({
-      ...params,
-      start_time: startDate,
-      end_time: endDate,
+      ...apiParams,
+      start_time: dateRange.startDate,
+      end_time: dateRange.endDate,
       limit: 100,
       page: 1,
     });
@@ -137,16 +150,42 @@ const Report: React.FC = () => {
   };
 
   const handleSubmit = (values: any) => {
-    fetchData(values);
+    // 更新时间范围
+    let newDateRange: any = {};
+    if (values.dateRange && values.dateRange.length === 2) {
+      newDateRange = {
+        startDate: values.dateRange[0]
+          .startOf('day')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        endDate: values.dateRange[1].endOf('day').format('YYYY-MM-DD HH:mm:ss'),
+      };
+      setDateRange(newDateRange);
+    }
+
+    // 从请求参数中移除 dateRange，只保留API需要的参数
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { dateRange, ...apiParams } = values;
+
+    // 使用 setTimeout 确保 dateRange 状态已更新
+    setTimeout(() => {
+      fetchData({
+        dateRange: newDateRange,
+        ...apiParams,
+      });
+    }, 0);
   };
 
   const handleReset = () => {
+    const defaultRange = getDefaultDateRange();
+    setDateRange(defaultRange);
     form.resetFields();
-    fetchData({});
+    setTimeout(() => {
+      fetchData({ dateRange: getDefaultDateRange() });
+    }, 0);
   };
 
   useEffect(() => {
-    fetchData({});
+    fetchData({ dateRange: getDefaultDateRange() });
   }, []);
 
   if (!isLogin) {
@@ -170,20 +209,20 @@ const Report: React.FC = () => {
       <Card title="设备情况汇总" style={{ marginTop: 24 }}>
         <Spin spinning={loading}>
           <div>
-            {` 您好，贵店上周（${dayjs(startDate).format('M月D日')}-${dayjs(
-              endDate,
-            ).format('M月D日')}）新增安装易达安设备${
-              weeklyDeviceStats.reported
-            }台，累计安装${deviceStats.reported}台，其中已安装未绑定${
-              deviceStats.reportedUnbound
-            }台；`}
+            {` 您好，贵店在（${dayjs(dateRange.startDate).format(
+              'M月D日',
+            )}-${dayjs(dateRange.endDate).format(
+              'M月D日',
+            )}）新增安装易达安设备${weeklyDeviceStats.reported}台，累计安装${
+              deviceStats.reported
+            }台，其中已安装未绑定${deviceStats.reportedUnbound}台；`}
           </div>
           <div>
-            {` 易达安上周推送事故线索${weeklyTasks.length}条，认领${
+            {` 易达安在此期间推送事故线索${weeklyTasks.length}条，认领${
               weeklyTasks.filter((task) => task.status.name !== '待认领').length
             }条；`}
           </div>
-          <div>{`易达安上周推送流失提醒${lossList.length}台设备。`}</div>
+          <div>{`易达安在此期间推送流失提醒${lossList.length}台设备。`}</div>
           <div>以上详情请登录易达安售后小程序查看。</div>
         </Spin>
       </Card>

@@ -19,7 +19,7 @@ export async function fetchAllPaginatedData<T, P extends object>(
     responseKey?: string;
   } = {},
 ): Promise<T[]> {
-  const { pageSize = 1000, responseKey = 'record_list' } = options;
+  const { pageSize = 100, responseKey = 'record_list' } = options;
 
   try {
     // 获取第一页数据和总页数

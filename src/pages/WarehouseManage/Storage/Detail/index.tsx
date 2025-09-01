@@ -76,7 +76,9 @@ const StorageDetail: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label="出库批次">
             {detail?.outbound_batch_id ? (
-              <a href={`warehouse/outbound/${detail.outbound_batch_id}`}>
+              <a
+                href={`/warehouse/outbound/detail/${detail.outbound_batch_id}`}
+              >
                 {detail.outbound_batch_id}
               </a>
             ) : (

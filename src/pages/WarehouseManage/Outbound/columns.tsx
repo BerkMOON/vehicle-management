@@ -2,7 +2,9 @@ import { ModalControl } from '@/hooks/useModalControl';
 import { INBOUND_STATUS_CODE } from '@/services/warehouse/inbound/typings.d';
 import { OutboundRecordItem } from '@/services/warehouse/outbound/typings.d';
 import { StorageAPI } from '@/services/warehouse/storage/StorageController';
+import { StorageItem } from '@/services/warehouse/storage/typings';
 import { ColumnsProps } from '@/types/common';
+import { fetchAllPaginatedData } from '@/utils/request';
 import { history } from '@umijs/max';
 import { Button, message } from 'antd';
 import dayjs from 'dayjs';
@@ -13,15 +15,17 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
 
   const handleExport = async (record: OutboundRecordItem) => {
     try {
-      // 获取所有数据
-      const { data } = await StorageAPI.getStorageList({
-        outbound_batch_id: Number(record.id),
-        page: 1,
-        limit: 1000,
-      });
+      const allRecords: StorageItem[] = await fetchAllPaginatedData(
+        StorageAPI.getStorageList,
+        { outbound_batch_id: Number(record.id) },
+        {
+          pageSize: 100,
+          responseKey: 'record_list',
+        },
+      );
 
       // 转换数据格式
-      const exportData = data.record_list.map((item, key) => ({
+      const exportData = allRecords.map((item, key) => ({
         '': key + 1,
         SN码: item.sn,
         扫码日期: dayjs(record.modify_time).format('YYYY年MM月DD日'),
@@ -43,7 +47,7 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
       XLSX.utils.sheet_add_json(ws, exportData, { origin: 'A2' }); // 从第3行开始添加数据
 
       // 计算数据最后一行的位置
-      const lastRow = data.record_list.length + 3; // 标题行 + 空行 + 数据行数
+      const lastRow = allRecords.length + 3; // 标题行 + 空行 + 数据行数
 
       // 添加签收信息行（居中对齐）
       XLSX.utils.sheet_add_aoa(
@@ -61,8 +65,8 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
         { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }, // 合并第一行的所有列
         // 合并签收信息行的单元格
         {
-          s: { r: data.record_list.length + 2, c: 0 },
-          e: { r: data.record_list.length + 2, c: 5 },
+          s: { r: allRecords.length + 2, c: 0 },
+          e: { r: allRecords.length + 2, c: 5 },
         }, // 合并整行
       ];
 
@@ -99,7 +103,7 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
       }
 
       // 设置所有数据单元格的样式
-      for (let r = 1; r <= data.record_list.length + 3; r++) {
+      for (let r = 1; r <= allRecords.length + 3; r++) {
         for (let c = 0; c <= 5; c++) {
           const cellRef = XLSX.utils.encode_cell({ r, c });
           if (ws[cellRef]) {
@@ -124,7 +128,7 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
       ws['!rows'][0] = { hpt: 30 }; // 设置标题行高
 
       // 为每一行设置行高
-      for (let i = 1; i <= data.record_list.length + 3; i++) {
+      for (let i = 1; i <= allRecords.length + 3; i++) {
         ws['!rows'][i] = { hpt: 25 }; // 设置数据行高
       }
 

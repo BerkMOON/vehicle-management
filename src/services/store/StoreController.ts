@@ -34,7 +34,10 @@ export const StoreAPI = {
   getAllStores: (params?: StoreParams) =>
     request<ResponseInfoType<StoreList>>(`${API_PREFIX}/getAllStores`, {
       method: 'GET',
-      params,
+      params: {
+        ...params,
+        status: 'active',
+      },
     }),
 
   /**
@@ -51,14 +54,17 @@ export const StoreAPI = {
 
   /**
    * 删除门店
-   * POST /api/admin/external/store/delete
+   * POST /api/admin/external/store/status
    * 接口ID：250552141
    * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-250552141
    */
   deleteStore: (params?: StoreDeleteParams) =>
-    request<ResponseInfoType<null>>(`${API_PREFIX}/delete`, {
+    request<ResponseInfoType<null>>(`${API_PREFIX}/status`, {
       method: 'POST',
-      data: params,
+      data: {
+        ...params,
+        status: 'deleted',
+      },
     }),
 
   /**

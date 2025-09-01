@@ -1,13 +1,15 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams } from '@umijs/max';
-import { Button, Input, Space, Table } from 'antd';
-import React, { useEffect } from 'react';
+import { Button, Input, Space, Table, message } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { BatchInfo } from './components/BatchInfo';
+import InboundSelector from './components/InboundSelector';
 import { useOutboundInput } from './hooks/useOutboundInput';
 
 const ProductInput: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [selectorVisible, setSelectorVisible] = useState(false);
 
   const {
     record,
@@ -26,6 +28,22 @@ const ProductInput: React.FC = () => {
       fetchRecord(id);
     }
   }, [id]);
+
+  const handleInboundConfirm = (snList: string[]) => {
+    // 将获取到的SN号批量填入扫描输入框
+    const snText = snList.join('\n');
+    setScanValue(snText);
+
+    console.log(snList);
+
+    // 批量扫描处理
+    snList.forEach((sn) => {
+      handleScan(sn);
+    });
+
+    setSelectorVisible(false);
+    message.success(`已导入${snList.length}个SN号`);
+  };
 
   return (
     <PageContainer
@@ -57,6 +75,7 @@ const ProductInput: React.FC = () => {
           autoFocus
           style={{ width: '300px' }}
         />
+        {/* <Button onClick={() => setSelectorVisible(true)}>筛选入库单</Button> */}
         <Table
           columns={columns}
           dataSource={tableData}
@@ -71,6 +90,12 @@ const ProductInput: React.FC = () => {
           </Button>
         </Space>
       </Space>
+
+      <InboundSelector
+        visible={selectorVisible}
+        onCancel={() => setSelectorVisible(false)}
+        onConfirm={handleInboundConfirm}
+      />
     </PageContainer>
   );
 };

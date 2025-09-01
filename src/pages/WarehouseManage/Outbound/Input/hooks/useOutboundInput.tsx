@@ -20,7 +20,7 @@ export const useOutboundInput = () => {
     },
   ];
 
-  const showConfirm = (recordList: string[]) => {
+  const showConfirm = (recordList: string[], id: string) => {
     return new Promise((resolve) => {
       Modal.confirm({
         title: '保留录入数据?',
@@ -31,7 +31,7 @@ export const useOutboundInput = () => {
           resolve(true);
         },
         onCancel() {
-          OutboundAPI.clearStagingRecord({ batch_id: Number(record?.id) });
+          OutboundAPI.clearStagingRecord({ batch_id: Number(id) });
           resolve(false);
         },
       });
@@ -134,7 +134,7 @@ export const useOutboundInput = () => {
       });
 
       if (record_list.length > 0) {
-        const confirmed = await showConfirm(record_list);
+        const confirmed = await showConfirm(record_list, id);
         if (confirmed) {
           setTableData((prevData) =>
             prevData.map((item) => ({
