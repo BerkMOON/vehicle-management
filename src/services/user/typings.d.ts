@@ -15,6 +15,7 @@ export interface RoleList {
   company_id: number;
   company_name?: string;
   role: Role;
+  role_name: string;
   store_id: number;
   store_name?: string;
 }

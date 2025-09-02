@@ -31,4 +31,5 @@ export enum PERMISSION_CODE {
   WAREHOUSE_INBOUND_MODULE = 'warehouse_inbound_module',
   WAREHOUSE_OUTBOUND_MODULE = 'warehouse_outbound_module',
   WAREHOUSE_STORAGE_MODULE = 'warehouse_storage_module',
+  WAREHOUSE_RETURN_MODULE = 'warehouse_return_module',
 }

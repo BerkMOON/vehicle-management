@@ -11,6 +11,7 @@ import type {
 } from '@/services/warehouse/inbound/typings';
 import { filterValues } from '@/utils/format';
 import { Form } from 'antd';
+import { ColumnsType } from 'antd/es/table';
 import React, { useRef, useState } from 'react';
 import { getColumns } from './columns';
 import { InboundForm } from './operatorForm';
@@ -71,7 +72,7 @@ const InboundList: React.FC = () => {
       <BaseListPage
         ref={baseListRef}
         title="入库记录"
-        columns={columns}
+        columns={columns as ColumnsType}
         searchFormItems={searchForm}
         fetchData={fetchInboundData}
         searchParamsTransform={searchParamsTransform}

@@ -45,6 +45,7 @@ export const searchForm = (
           options={[
             { label: '在库', value: StorageStatus.IN },
             { label: '已出库', value: StorageStatus.OUT },
+            { label: '已退货', value: StorageStatus.RETURNED },
           ]}
         />
       </Form.Item>

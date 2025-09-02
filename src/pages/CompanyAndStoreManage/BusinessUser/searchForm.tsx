@@ -4,8 +4,8 @@ import { Col, Form, Input, Select } from 'antd';
 export const searchForm = (
   <>
     <Col>
-      <Form.Item name="username" label="用户姓名">
-        <Input placeholder="请输入用户姓名" allowClear />
+      <Form.Item name="username" label="用户账号">
+        <Input placeholder="请输入用户账号" allowClear />
       </Form.Item>
     </Col>
     <Col>

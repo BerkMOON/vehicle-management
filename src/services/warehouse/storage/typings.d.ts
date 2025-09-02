@@ -44,4 +44,29 @@ export interface StorageListResponse extends BaseListInfo {
 export enum StorageStatus {
   IN = 'in',
   OUT = 'out',
+  RETURNED = 'returned',
+}
+
+export interface ReturnParams extends PageInfoParams {
+  company_id?: number;
+  end_time?: string;
+  id?: number;
+  remark?: string;
+  sn?: string;
+  start_time?: string;
+  store_id?: number;
+}
+
+export interface ReturnItem {
+  company_name?: string;
+  create_time?: string;
+  id?: number;
+  modify_time?: string;
+  remark?: string;
+  sn?: string;
+  store_name?: string;
+}
+
+export interface ReturnListResponse extends BaseListInfo {
+  record_list: ReturnItem[];
 }

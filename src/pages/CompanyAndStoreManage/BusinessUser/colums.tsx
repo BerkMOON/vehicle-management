@@ -42,7 +42,9 @@ export const getColumns = (props: ColumnsProps<UserInfo>) => {
       title: '角色',
       dataIndex: 'role_list',
       render: (roleList: RoleList[]) => {
-        return roleList.map((item, key) => <div key={key}>{item.role}</div>);
+        return roleList.map((item, key) => (
+          <div key={key}>{item.role_name}</div>
+        ));
       },
     },
     {

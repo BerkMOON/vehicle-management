@@ -257,5 +257,14 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
           authority.code === PERMISSION_CODE.WAREHOUSE_OUTBOUND_MODULE,
       );
     },
+    returnList: () => {
+      const warehouseModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.WAREHOUSE_MODULE,
+      );
+      return warehouseModule?.children.find(
+        (authority) =>
+          authority.code === PERMISSION_CODE.WAREHOUSE_RETURN_MODULE,
+      );
+    },
   };
 };

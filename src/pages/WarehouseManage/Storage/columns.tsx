@@ -13,6 +13,24 @@ export const getColumns = () => {
       title: '库存状态',
       dataIndex: ['status', 'name'],
       key: 'status',
+      render: (text: string) => {
+        return (
+          <>
+            <span
+              style={{
+                color:
+                  text === '在库'
+                    ? '#1677ff'
+                    : text === '已出库'
+                    ? 'orange'
+                    : 'red',
+              }}
+            >
+              {text}
+            </span>
+          </>
+        );
+      },
     },
     {
       title: '设备类型',

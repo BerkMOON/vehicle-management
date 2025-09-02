@@ -280,6 +280,12 @@ export default defineConfig({
           hideInMenu: true,
           access: 'outboundList',
         },
+        {
+          name: '退货登记',
+          path: '/warehouse/return/list',
+          component: './WarehouseManage/ReturnDevice',
+          access: 'returnList',
+        },
       ],
     },
     {
@@ -307,8 +313,8 @@ export default defineConfig({
     '/api': {
       // 标识需要进行转换的请求的url
       target: 'https://test.ai-kaka.com:443',
-      //    target: 'https://eda.ai-kaka.com:443',
-      // target: 'http://192.168.8.227:8888',
+      //   target: 'https://eda.ai-kaka.com:443',
+      //   target: 'http://192.168.8.227:8888',
       changeOrigin: true, // 允许域名进行转换
     },
   },

@@ -92,7 +92,6 @@ const BaseTable = forwardRef<BaseTableRef, BaseTableProps>((props, ref) => {
   return (
     <Table<any>
       loading={loading}
-      rowKey={(record) => record.id || record.role_id || record.user_id}
       columns={columns}
       dataSource={data}
       scroll={{ x: 'max-content' }}
