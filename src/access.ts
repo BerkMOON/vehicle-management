@@ -112,6 +112,17 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
         (endpoint) => endpoint.code === PERMISSION_CODE.LIST_CLUE,
       );
     },
+    abnormalClueList: () => {
+      const auditModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.AUDIT_MODULE,
+      );
+      const taskManager = auditModule?.children.find(
+        (child) => child.code === PERMISSION_CODE.TASK_MANAGER,
+      );
+      return taskManager?.endpoints.find(
+        (endpoint) => endpoint.code === PERMISSION_CODE.LIST_ABNORMAL_TASK,
+      );
+    },
     // 线索详情
     auditList: () => {
       const auditModule = initialState?.authority?.find(

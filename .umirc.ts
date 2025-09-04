@@ -118,20 +118,20 @@ export default defineConfig({
           path: '/review/abnormalClue',
           name: '异常线索列表',
           component: './ReviewManage/AbnormalClueList',
-          access: 'clueList',
+          access: 'abnormalClueList',
         },
         {
           path: '/review/abnormalClue/:clueId',
           name: '异常线索详情',
           component: './ReviewManage/Task/Detail',
-          access: 'clueList',
+          access: 'abnormalClueList',
           hideInMenu: true,
         },
         {
           path: '/review/black',
           name: '黑名单列表',
           component: './ReviewManage/BlackList',
-          access: 'clueList',
+          access: 'auditBlackList',
         },
       ],
     },
@@ -290,7 +290,7 @@ export default defineConfig({
     },
     {
       name: '数据看板',
-      access: 'equipmentManage',
+      access: 'warehouseModule',
       path: '/dashboard',
       hideInBreadcrumb: true,
       lazy: true,
@@ -304,6 +304,7 @@ export default defineConfig({
           path: '/dashboard/audit',
           name: '工单看板',
           component: './Dashboard/AuditDashboard',
+          access: 'warehouseModule',
         },
       ],
     },
@@ -312,8 +313,8 @@ export default defineConfig({
   proxy: {
     '/api': {
       // 标识需要进行转换的请求的url
-      target: 'https://test.ai-kaka.com:443',
-      //   target: 'https://eda.ai-kaka.com:443',
+      //   target: 'https://test.ai-kaka.com:443',
+      target: 'https://eda.ai-kaka.com:443',
       //   target: 'http://192.168.8.227:8888',
       changeOrigin: true, // 允许域名进行转换
     },

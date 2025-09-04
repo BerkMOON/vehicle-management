@@ -13,6 +13,7 @@ export enum PERMISSION_CODE {
   TASK_DETAIL = 'task_detail',
   LIST_CLUE = 'list_clue',
   LIST_HANDLER = 'list_handler',
+  LIST_ABNORMAL_TASK = 'list_abnormal_task',
   EXTERNAL_COMPANY_MODULE = 'external_company_module',
   COMPANY_LIST = 'get_all_companies',
   STORE_LIST = 'get_all_stores',
