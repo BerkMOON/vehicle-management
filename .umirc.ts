@@ -211,6 +211,12 @@ export default defineConfig({
           component: './EquipmentManage/LossReminder',
           access: 'lossReminder',
         },
+        {
+          path: '/equipment/mileage',
+          name: '里程提醒',
+          component: './EquipmentManage/MileageReminder',
+          access: 'mileageReminder',
+        },
       ],
     },
     {
@@ -306,6 +312,12 @@ export default defineConfig({
           component: './Dashboard/AuditDashboard',
           access: 'warehouseModule',
         },
+        {
+          path: '/dashboard/store/:id',
+          name: '门店看板',
+          component: './Dashboard/StoreDetail',
+          access: 'warehouseModule',
+        },
       ],
     },
   ],
@@ -313,7 +325,7 @@ export default defineConfig({
   proxy: {
     '/api': {
       // 标识需要进行转换的请求的url
-      //   target: 'https://test.ai-kaka.com:443',
+      // target: 'https://test.ai-kaka.com:443',
       target: 'https://eda.ai-kaka.com:443',
       //   target: 'http://192.168.8.227:8888',
       changeOrigin: true, // 允许域名进行转换

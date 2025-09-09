@@ -1,11 +1,12 @@
 import InfiniteSelect from '@/components/BasicComponents/InfiniteSelect';
 import { StoreAPI } from '@/services/store/StoreController';
 import { StoreItem } from '@/services/store/typing';
+import { DefaultOptionType } from 'antd/es/select';
 import React, { useEffect, useRef } from 'react';
 
 interface StoreSelectProps {
   value?: string | number;
-  onChange?: (value: string | number) => void;
+  onChange?: (value: string | number, option?: DefaultOptionType) => void;
   placeholder?: string;
   disabled?: boolean;
   companyId?: string;

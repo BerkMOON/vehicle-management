@@ -5,7 +5,7 @@ interface ChartProps {
   data: any[];
 }
 
-const BaseChart = forwardRef<any, ChartProps>((props, ref) => {
+const PieChart = forwardRef<any, ChartProps>((props, ref) => {
   const { data } = props;
   const config = {
     data,
@@ -36,4 +36,4 @@ const BaseChart = forwardRef<any, ChartProps>((props, ref) => {
   return <Pie {...config} ref={ref} />;
 });
 
-export default BaseChart;
+export default PieChart;

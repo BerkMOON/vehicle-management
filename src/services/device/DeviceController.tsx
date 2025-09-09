@@ -7,6 +7,8 @@ import type {
   DeviceResponse,
   LossRequest,
   LossResponse,
+  MileageReminderRequest,
+  MileageReminderResponse,
 } from './typings';
 
 const API_PREFIX = '/api/admin/device';
@@ -34,6 +36,21 @@ export const DeviceAPI = {
   getLossNotifications: (params?: LossRequest) =>
     request<ResponseInfoType<LossResponse>>(
       `${API_PREFIX}/getLossNotifications`,
+      {
+        method: 'GET',
+        params,
+      },
+    ),
+
+  /**
+   * 里程列表后台
+   * GET /api/admin/device/mileage/list
+   * 接口ID：345527290
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-345527290
+   */
+  getMileageReminder: (params?: MileageReminderRequest) =>
+    request<ResponseInfoType<MileageReminderResponse>>(
+      `${API_PREFIX}/mileage/list`,
       {
         method: 'GET',
         params,

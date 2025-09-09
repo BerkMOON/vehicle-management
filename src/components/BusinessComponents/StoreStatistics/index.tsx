@@ -26,6 +26,11 @@ interface StoreStatisticsProps {
   storeId: number | string;
   storeName: string;
   loading?: boolean;
+  dateRange?: {
+    startTime?: string;
+    endTime?: string;
+  } | null;
+  onClick?: (storeId: number | string, storeName: string) => void;
   onTaskCountChange?: (count: number) => void;
   onAllDataChange?: (data: AllStoreData) => void;
 }
@@ -53,6 +58,8 @@ const pageParams = {
 const StoreStatistics: React.FC<StoreStatisticsProps> = ({
   storeId,
   storeName,
+  dateRange,
+  onClick,
   onTaskCountChange,
   onAllDataChange,
 }) => {
@@ -79,10 +86,17 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
       deviceActivated: true,
     }));
     try {
-      const [notActivedRes, allRes] = await Promise.all([
+      const [unactivedRes, activedRes, allRes] = await Promise.all([
         DeviceAPI.getDeviceList({
           report_status: 'unreported',
           store_id: storeId,
+          ...pageParams,
+        }),
+        DeviceAPI.getDeviceList({
+          report_status: 'reported',
+          store_id: storeId,
+          onset_start_time: dateRange?.startTime,
+          onset_end_time: dateRange?.endTime,
           ...pageParams,
         }),
         DeviceAPI.getDeviceList({
@@ -92,8 +106,8 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
       ]);
 
       const total = allRes.data.meta.total_count;
-      const unactivated = notActivedRes.data.meta.total_count;
-      const activated = total - unactivated;
+      const activated = activedRes.data.meta.total_count;
+      const unactivated = unactivedRes.data.meta.total_count;
 
       setDeviceStats((prev) => {
         const newStats = {
@@ -138,12 +152,16 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
           report_status: 'reported',
           store_id: storeId,
           ...pageParams,
+          onset_start_time: dateRange?.startTime,
+          onset_end_time: dateRange?.endTime,
         }),
         DeviceAPI.getDeviceList({
           status: 'init',
           report_status: 'reported',
           store_id: storeId,
           ...pageParams,
+          onset_start_time: dateRange?.startTime,
+          onset_end_time: dateRange?.endTime,
         }),
       ]);
 
@@ -186,6 +204,14 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
         status: 'all',
         store_id: Number(storeId),
       };
+
+      // 添加时间筛选参数
+      if (dateRange?.startTime) {
+        params.start_time = dateRange.startTime;
+      }
+      if (dateRange?.endTime) {
+        params.end_time = dateRange.endTime;
+      }
 
       const auditResponse = await AuditAPI.getBTaskList(params);
       const count =
@@ -237,7 +263,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
 
   useEffect(() => {
     refreshData();
-  }, [storeId]);
+  }, [storeId, dateRange]);
 
   const isAnyLoading = Object.values(loadingStates).some(Boolean);
 
@@ -246,12 +272,17 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
       title={storeName}
       size="small"
       hoverable
+      onClick={() => onClick?.(storeId, storeName)}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
       extra={
         <Button
           type="text"
           size="small"
           icon={<ReloadOutlined />}
-          onClick={refreshData}
+          onClick={(e) => {
+            e.stopPropagation();
+            refreshData();
+          }}
           loading={isAnyLoading}
           title="刷新数据"
         />

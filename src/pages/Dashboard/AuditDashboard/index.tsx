@@ -1,13 +1,15 @@
 import StoreStatistics from '@/components/BusinessComponents/StoreStatistics';
-import BaseChart from '@/components/ChartComponents/BaseChart/BaseChart';
+import PieChart from '@/components/ChartComponents/BaseChart/PieChart';
 import { SuccessCode } from '@/constants';
 import { StoreAPI } from '@/services/store/StoreController';
 import { StoreItem } from '@/services/store/typing';
 import { CarOutlined, ReloadOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import {
   Button,
   Card,
   Col,
+  DatePicker,
   Empty,
   InputNumber,
   Row,
@@ -16,7 +18,10 @@ import {
   Spin,
   Statistic,
 } from 'antd';
+import { Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+
+const { RangePicker } = DatePicker;
 
 interface StoreInfo {
   store_id: number | string;
@@ -47,11 +52,16 @@ const AuditDashboard: React.FC = () => {
   const [filterField, setFilterField] = useState<FilterField>('taskCount');
   const [minValue, setMinValue] = useState<number | null>(null);
   const [maxValue, setMaxValue] = useState<number | null>(null);
-  const [activeFilter, setActiveFilter] = useState<{
+  const [activeDataFilter, setActiveDataFilter] = useState<{
     field: FilterField;
     min: number | null;
     max: number | null;
   } | null>(null);
+  const [activeDateRange, setActiveDateRange] = useState<{
+    startTime: string;
+    endTime: string;
+  } | null>();
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
 
   const fetchStores = async () => {
     setStoresLoading(true);
@@ -110,6 +120,10 @@ const AuditDashboard: React.FC = () => {
     }));
   };
 
+  const handleStoreClick = (storeId: string | number) => {
+    history.push(`/dashboard/store/${storeId}`);
+  };
+
   useEffect(() => {
     fetchStores();
   }, []);
@@ -121,31 +135,52 @@ const AuditDashboard: React.FC = () => {
   );
   const loadedStoresCount = Object.keys(taskCounts).length;
 
-  // 筛选函数
+  // 筛选函数（只处理数量筛选，不处理时间）
   const filterStore = (storeId: string | number) => {
-    if (!activeFilter) return true; // 没有激活的筛选条件时不过滤
+    if (!activeDataFilter) return true; // 没有激活的数量筛选条件时不过滤
 
     const storeData = storeAllData[storeId];
     if (!storeData) return true; // 数据未加载时不过滤
 
-    const fieldValue = storeData[activeFilter.field];
+    const fieldValue = storeData[activeDataFilter.field];
     const minValid =
-      activeFilter.min === null || fieldValue >= activeFilter.min;
+      activeDataFilter.min === null || fieldValue >= activeDataFilter.min;
     const maxValid =
-      activeFilter.max === null || fieldValue <= activeFilter.max;
+      activeDataFilter.max === null || fieldValue <= activeDataFilter.max;
     return minValid && maxValid;
   };
 
   // 应用筛选
   const applyFilter = () => {
+    // 处理数量筛选（前端过滤，不触发请求）
     if (minValue === null && maxValue === null) {
-      setActiveFilter({ field: filterField, min: null, max: null });
+      setActiveDataFilter(null);
     } else {
-      setActiveFilter({
+      setActiveDataFilter({
         field: filterField,
         min: minValue,
         max: maxValue,
       });
+    }
+
+    // 处理时间筛选（需要重新请求数据）
+    if (dateRange) {
+      const newDateRange = {
+        startTime: dateRange[0].format('YYYY-MM-DD HH:mm:ss'),
+        endTime: dateRange[1].format('YYYY-MM-DD HH:mm:ss'),
+      };
+      // 只有时间范围真正改变时才更新
+      if (
+        !activeDateRange ||
+        activeDateRange.startTime !== newDateRange.startTime ||
+        activeDateRange.endTime !== newDateRange.endTime
+      ) {
+        setActiveDateRange(newDateRange);
+      }
+    } else {
+      if (activeDateRange) {
+        setActiveDateRange(null);
+      }
     }
   };
 
@@ -153,7 +188,9 @@ const AuditDashboard: React.FC = () => {
   const resetFilter = () => {
     setMinValue(null);
     setMaxValue(null);
-    setActiveFilter(null);
+    setActiveDataFilter(null);
+    setDateRange(null);
+    setActiveDateRange(null);
   };
 
   // 字段选项
@@ -184,7 +221,9 @@ const AuditDashboard: React.FC = () => {
   };
 
   // 为饼图准备数据，根据激活的筛选字段显示对应数据（没有激活筛选时默认显示工单数据）
-  const currentDisplayField = activeFilter ? activeFilter.field : 'taskCount';
+  const currentDisplayField = activeDataFilter
+    ? activeDataFilter.field
+    : 'taskCount';
   const chartData = filteredStoreList
     .map((store) => {
       const value = getStoreFieldValue(store.store_id, currentDisplayField);
@@ -261,7 +300,20 @@ const AuditDashboard: React.FC = () => {
             </Button>
             <Button onClick={resetFilter}>重置筛选</Button>
           </Space>
-          {activeFilter && (
+          <div style={{ marginTop: '12px' }}>
+            <Space>
+              <span>时间范围：</span>
+              <RangePicker
+                value={dateRange}
+                onChange={setDateRange as any}
+                placeholder={['开始时间', '结束时间']}
+                showTime={{ format: 'HH:mm:ss' }}
+                format="YYYY-MM-DD HH:mm:ss"
+                style={{ width: 400 }}
+              />
+            </Space>
+          </div>
+          {(activeDataFilter || activeDateRange) && (
             <div
               style={{
                 marginTop: '12px',
@@ -271,9 +323,23 @@ const AuditDashboard: React.FC = () => {
               }}
             >
               <span style={{ color: '#1890ff' }}>
-                当前筛选: {getFieldLabel(activeFilter.field)}
-                {activeFilter.min !== null && ` >= ${activeFilter.min}`}
-                {activeFilter.max !== null && ` <= ${activeFilter.max}`}
+                当前筛选:
+                {activeDataFilter && (
+                  <>
+                    {getFieldLabel(activeDataFilter.field)}
+                    {activeDataFilter.min !== null &&
+                      ` >= ${activeDataFilter.min}`}
+                    {activeDataFilter.max !== null &&
+                      ` <= ${activeDataFilter.max}`}
+                  </>
+                )}
+                {activeDateRange && (
+                  <>
+                    {activeDataFilter && '，'}
+                    时间范围: {activeDateRange.startTime.slice(0, 16)} ~{' '}
+                    {activeDateRange.endTime.slice(0, 16)}
+                  </>
+                )}
                 ，显示 {filteredStoreList.length}/{storeList.length} 个门店
               </span>
             </div>
@@ -287,7 +353,7 @@ const AuditDashboard: React.FC = () => {
             >
               {chartData.length > 0 ? (
                 <div style={{ height: '650px' }}>
-                  <BaseChart data={chartData} />
+                  <PieChart data={chartData} />
                 </div>
               ) : (
                 <div
@@ -319,7 +385,7 @@ const AuditDashboard: React.FC = () => {
             <Card>
               <Statistic
                 title={
-                  activeFilter
+                  activeDataFilter
                     ? `筛选后${getFieldLabel(
                         currentDisplayField,
                       )} (${filteredLoadedStoresCount}/${
@@ -331,7 +397,7 @@ const AuditDashboard: React.FC = () => {
                           : ''
                       }`
                 }
-                value={activeFilter ? filteredTotal : totalTasks}
+                value={activeDataFilter ? filteredTotal : totalTasks}
                 prefix={<CarOutlined />}
                 valueStyle={{ color: '#1890ff', fontSize: '24px' }}
                 suffix={
@@ -364,13 +430,16 @@ const AuditDashboard: React.FC = () => {
               sm={12}
               md={8}
               lg={6}
-              xl={4}
+              xl={4.8}
+              xxl={4.8}
               key={store.store_id}
               style={{ marginBottom: '16px' }}
             >
               <StoreStatistics
                 storeId={store.store_id}
                 storeName={store.store_name}
+                dateRange={activeDateRange}
+                onClick={handleStoreClick}
                 onTaskCountChange={(count) =>
                   handleTaskCountChange(store.store_id, count)
                 }

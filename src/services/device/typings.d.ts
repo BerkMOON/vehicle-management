@@ -58,3 +58,25 @@ export interface LossInfo {
 export interface LossResponse extends BaseListInfo {
   record_list: LossInfo[];
 }
+
+export interface MileageReminderRequest extends PageInfoParams {
+  company_id?: number;
+  mileage?: number;
+  sn?: string;
+  store_id?: number;
+}
+
+export interface MileageReminderInfo {
+  company_name?: string;
+  device_id?: string;
+  id?: number;
+  mileage?: number;
+  phone?: string;
+  sn?: string;
+  store_name?: string;
+  brand?: string;
+  car_model?: string;
+}
+export interface MileageReminderResponse extends BaseListInfo {
+  item_list: MileageReminderInfo[];
+}

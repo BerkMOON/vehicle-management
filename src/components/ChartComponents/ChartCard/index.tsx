@@ -2,7 +2,7 @@ import { DeviceAPI } from '@/services/device/DeviceController';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Spin } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import BaseChart from '../BaseChart/BaseChart';
+import BaseChart from '../BaseChart/PieChart';
 import styles from './index.scss';
 
 interface ChartCardProps {

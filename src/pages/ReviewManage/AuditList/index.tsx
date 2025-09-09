@@ -37,6 +37,15 @@ const AuditList: React.FC = () => {
     return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
+  const searchParamsTransform = (params: any) => {
+    const { timeRange, ...rest } = params;
+    return {
+      ...rest,
+      start_time: timeRange?.[0]?.format('YYYY-MM-DD HH:mm:ss'),
+      end_time: timeRange?.[1]?.format('YYYY-MM-DD HH:mm:ss'),
+    };
+  };
+
   return (
     <BaseListPage
       ref={baseListRef}
@@ -45,6 +54,7 @@ const AuditList: React.FC = () => {
       searchFormItems={searchForm}
       fetchData={fetchClueData}
       defaultSearchParams={DEFAULT_SEARCH_PARAMS}
+      searchParamsTransform={searchParamsTransform}
     />
   );
 };
