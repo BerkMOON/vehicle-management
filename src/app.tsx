@@ -1,9 +1,14 @@
 // 运行时配置
 import { Button, Result } from 'antd';
+import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import Login from './components/BasicComponents/Login/Login';
 import iconPng from './favicon.jpeg';
 import { UserSelfInfo } from './services/user/typings';
 import { UserAPI } from './services/user/UserController';
+
+// 全局配置 dayjs 插件
+dayjs.extend(isoWeek);
 
 // 全局初始化数据配置，用于 Layout 用户信息和权限初始化
 // 更多信息见文档：https://umijs.org/docs/api/runtime-config#getinitialstate

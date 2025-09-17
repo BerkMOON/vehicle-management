@@ -1,4 +1,4 @@
-import { Pie } from '@ant-design/charts';
+import { Pie } from '@ant-design/plots';
 import { forwardRef } from 'react';
 
 interface ChartProps {
@@ -13,9 +13,15 @@ const PieChart = forwardRef<any, ChartProps>((props, ref) => {
     colorField: 'type',
     radius: 0.7,
     label: {
-      text: (d: { type: string; value: number }) => `${d.type}\n ${d.value}`,
+      text: (d: any) => {
+        // 计算总数
+        const total = data.reduce((sum, item) => sum + item.value, 0);
+        const percentage = ((d.value / total) * 100).toFixed(1);
+        return `${d.type}\n${d.value} (${percentage}%)`;
+      },
       style: {
         fontWeight: 'bold',
+        fontSize: 12,
       },
       position: 'spider',
       transform: [

@@ -20,6 +20,7 @@ interface AllStoreData {
   deviceUnactivated: number;
   deviceBound: number;
   deviceUnbound: number;
+  unUsedCount: number;
 }
 
 interface StoreStatisticsProps {
@@ -41,6 +42,7 @@ interface DeviceStats {
   bound: number;
   unbound: number;
   total: number;
+  unUsed: number;
 }
 
 interface LoadingStates {
@@ -48,6 +50,7 @@ interface LoadingStates {
   deviceTotal: boolean;
   deviceActivated: boolean;
   deviceBound: boolean;
+  deviceUnused: boolean;
 }
 
 const pageParams = {
@@ -69,6 +72,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
     bound: 0,
     unbound: 0,
     total: 0,
+    unUsed: 0,
   });
   const [taskCount, setTaskCount] = useState(0);
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({
@@ -76,6 +80,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
     deviceTotal: false,
     deviceActivated: false,
     deviceBound: false,
+    deviceUnused: false,
   });
 
   // 获取设备总数和激活状态
@@ -126,6 +131,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
             deviceUnactivated: newStats.unactivated,
             deviceBound: newStats.bound,
             deviceUnbound: newStats.unbound,
+            unUsedCount: newStats.unUsed,
           });
         }
 
@@ -144,9 +150,13 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
 
   // 获取设备绑定状态
   const fetchDeviceBound = async () => {
-    setLoadingStates((prev) => ({ ...prev, deviceBound: true }));
+    setLoadingStates((prev) => ({
+      ...prev,
+      deviceBound: true,
+      deviceUnused: true,
+    }));
     try {
-      const [boundRes, initRes] = await Promise.all([
+      const [boundRes, initRes, unUsedRes] = await Promise.all([
         DeviceAPI.getDeviceList({
           status: 'bound',
           report_status: 'reported',
@@ -163,16 +173,23 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
           onset_start_time: dateRange?.startTime,
           onset_end_time: dateRange?.endTime,
         }),
+        DeviceAPI.getUnusedDeviceList({
+          page: 1,
+          limit: 1,
+          store_id: String(storeId),
+        }),
       ]);
 
       const bound = boundRes.data.meta.total_count;
       const unbound = initRes.data.meta.total_count;
+      const unUsed = unUsedRes.data.meta.total_count;
 
       setDeviceStats((prev) => {
         const newStats = {
           ...prev,
           bound,
           unbound,
+          unUsed,
         };
 
         // 传递所有数据
@@ -184,6 +201,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
             deviceUnactivated: newStats.unactivated,
             deviceBound: newStats.bound,
             deviceUnbound: newStats.unbound,
+            unUsedCount: newStats.unUsed,
           });
         }
 
@@ -192,7 +210,11 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
     } catch (error) {
       console.error(`获取门店 ${storeName} 设备绑定数据失败:`, error);
     } finally {
-      setLoadingStates((prev) => ({ ...prev, deviceBound: false }));
+      setLoadingStates((prev) => ({
+        ...prev,
+        deviceBound: false,
+        deviceUnused: false,
+      }));
     }
   };
 
@@ -233,6 +255,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
           deviceUnactivated: deviceStats.unactivated,
           deviceBound: deviceStats.bound,
           deviceUnbound: deviceStats.unbound,
+          unUsedCount: deviceStats.unUsed,
         });
       }
     } catch (error) {
@@ -252,6 +275,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
         bound: 0,
         unbound: 0,
         total: 0,
+        unUsed: 0,
       });
 
       // 并发启动所有请求
@@ -337,7 +361,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
         </Col>
       </Row>
       <Row gutter={16} style={{ marginTop: '16px' }}>
-        <Col span={12}>
+        <Col span={8}>
           <Spin spinning={loadingStates.deviceBound} size="small">
             <Statistic
               title="安装绑定"
@@ -347,13 +371,23 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
             />
           </Spin>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Spin spinning={loadingStates.deviceBound} size="small">
             <Statistic
               title="安装未绑定"
               value={loadingStates.deviceBound ? '-' : deviceStats.unbound}
               prefix={<DeleteColumnOutlined />}
               valueStyle={{ color: '#faad14', fontSize: '14px' }}
+            />
+          </Spin>
+        </Col>
+        <Col span={8}>
+          <Spin spinning={loadingStates.deviceUnused} size="small">
+            <Statistic
+              title="失效设备"
+              value={loadingStates.deviceUnused ? '-' : deviceStats.unUsed}
+              prefix={<DeleteColumnOutlined />}
+              valueStyle={{ color: '#ff4d4f', fontSize: '14px' }}
             />
           </Spin>
         </Col>

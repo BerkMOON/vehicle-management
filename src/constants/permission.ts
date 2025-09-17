@@ -28,6 +28,7 @@ export enum PERMISSION_CODE {
   BUSSINESS_DEVICE_MODULE = 'business_device_info_module',
   LOSS_REMINDER = 'loss_notification_module',
   MILEAGE_REMINDER = 'device_mileage_module',
+  UNUSED_DEVICE_MODULE = 'unused_device_module',
   OTA_MODULE = 'ota_module',
   WAREHOUSE_MODULE = 'warehouse_module',
   WAREHOUSE_INBOUND_MODULE = 'warehouse_inbound_module',

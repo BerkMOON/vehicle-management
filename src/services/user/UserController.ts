@@ -3,6 +3,8 @@
 import { ResponseInfoType } from '@/types/common';
 import { request } from '@umijs/max';
 import type {
+  CaptchaRequest,
+  CaptchaResponse,
   ModifyRoleParams,
   PageInfo_UserInfo,
   UserInfo,
@@ -37,7 +39,12 @@ export const UserAPI = {
    * 用户登录
    * POST /api/login
    */
-  loginUser: (params: { username: string; password: string }) =>
+  loginUser: (params: {
+    username: string;
+    password: string;
+    captcha?: string;
+    captcha_id?: string;
+  }) =>
     request<ResponseInfoType<null>>(`${API_PREFIX_ADMIN}/login`, {
       method: 'POST',
       data: params,
@@ -93,4 +100,19 @@ export const UserAPI = {
       method: 'POST',
       data: params,
     }),
+
+  /**
+   * 后台验证码接口
+   * POST /api/admin/captcha/gen
+   * 接口ID：350940898
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-350940898
+   */
+  generateCaptcha: (params: CaptchaRequest) =>
+    request<ResponseInfoType<CaptchaResponse>>(
+      `${API_PREFIX_ADMIN}/captcha/gen`,
+      {
+        method: 'POST',
+        data: params,
+      },
+    ),
 };

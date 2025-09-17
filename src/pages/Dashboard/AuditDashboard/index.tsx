@@ -1,10 +1,10 @@
 import StoreStatistics from '@/components/BusinessComponents/StoreStatistics';
+import DualAxesChart from '@/components/ChartComponents/BaseChart/DualAxesChart';
 import PieChart from '@/components/ChartComponents/BaseChart/PieChart';
 import { SuccessCode } from '@/constants';
 import { StoreAPI } from '@/services/store/StoreController';
 import { StoreItem } from '@/services/store/typing';
 import { CarOutlined, ReloadOutlined } from '@ant-design/icons';
-import { history } from '@umijs/max';
 import {
   Button,
   Card,
@@ -35,6 +35,7 @@ interface AllStoreData {
   deviceUnactivated: number;
   deviceBound: number;
   deviceUnbound: number;
+  unUsedCount: number;
 }
 
 type FilterField = keyof AllStoreData;
@@ -121,7 +122,7 @@ const AuditDashboard: React.FC = () => {
   };
 
   const handleStoreClick = (storeId: string | number) => {
-    history.push(`/dashboard/store/${storeId}`);
+    window.open(`/dashboard/store/${storeId}`, '_blank');
   };
 
   useEffect(() => {
@@ -154,7 +155,11 @@ const AuditDashboard: React.FC = () => {
   const applyFilter = () => {
     // 处理数量筛选（前端过滤，不触发请求）
     if (minValue === null && maxValue === null) {
-      setActiveDataFilter(null);
+      setActiveDataFilter({
+        field: filterField,
+        min: null,
+        max: null,
+      });
     } else {
       setActiveDataFilter({
         field: filterField,
@@ -191,6 +196,7 @@ const AuditDashboard: React.FC = () => {
     setActiveDataFilter(null);
     setDateRange(null);
     setActiveDateRange(null);
+    setFilterField('taskCount');
   };
 
   // 字段选项
@@ -201,6 +207,7 @@ const AuditDashboard: React.FC = () => {
     { value: 'deviceUnactivated', label: '未安装' },
     { value: 'deviceBound', label: '安装绑定' },
     { value: 'deviceUnbound', label: '安装未绑定' },
+    { value: 'unUsedCount', label: '失效设备' },
   ];
 
   // 筛选后的门店列表
@@ -252,6 +259,31 @@ const AuditDashboard: React.FC = () => {
   const getFieldLabel = (field: FilterField) => {
     return fieldOptions.find((opt) => opt.value === field)?.label || field;
   };
+
+  // 准备失效设备数据
+  const baseData = filteredStoreList
+    .map((store) => {
+      const storeData = storeAllData[store.store_id];
+      if (
+        !storeData ||
+        !storeData.deviceActivated ||
+        storeData.deviceActivated === 0
+      ) {
+        return null; // 没有已安装设备的门店不显示
+      }
+
+      const unusedPercentage =
+        ((storeData.unUsedCount || 0) / storeData.deviceActivated) * 100;
+
+      return {
+        storeName: store.store_name,
+        percentage: parseFloat(unusedPercentage.toFixed(1)),
+        unusedCount: storeData.unUsedCount || 0,
+        activatedCount: storeData.deviceActivated,
+      };
+    })
+    .filter((item) => item !== null) // 过滤掉null值
+    .sort((a, b) => b.percentage - a.percentage); // 按占比从高到低排序
 
   return (
     <div style={{ padding: '24px' }}>
@@ -406,6 +438,38 @@ const AuditDashboard: React.FC = () => {
                   ) : undefined
                 }
               />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 失效设备占比折线图 */}
+        <Row gutter={16} style={{ marginTop: '24px' }}>
+          <Col span={24}>
+            <Card title="各门店失效设备数量与占比分析">
+              {baseData.length > 0 ? (
+                <div style={{ height: '400px' }}>
+                  <DualAxesChart
+                    data={baseData}
+                    xField="storeName"
+                    leftYField="unusedCount"
+                    rightYField="percentage"
+                    leftAlias="失效设备数量"
+                    rightAlias="失效设备占比"
+                    leftFormatter={(value) => `${value}台`}
+                    rightFormatter={(value) => `${value}%`}
+                  />
+                </div>
+              ) : (
+                <Empty
+                  description="暂无失效设备数据"
+                  style={{
+                    height: '400px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                  }}
+                />
+              )}
             </Card>
           </Col>
         </Row>

@@ -245,6 +245,14 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
         (child) => child.code === PERMISSION_CODE.MILEAGE_REMINDER,
       );
     },
+    unUsedDevice: () => {
+      const deviceModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.DEVICE_MODULE,
+      );
+      return !!deviceModule?.children.find(
+        (child) => child.code === PERMISSION_CODE.UNUSED_DEVICE_MODULE,
+      );
+    },
     // 设备OTA
     otaVersion: () => {
       const otaModule = initialState?.authority?.find(

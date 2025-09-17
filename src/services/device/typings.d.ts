@@ -80,3 +80,22 @@ export interface MileageReminderInfo {
 export interface MileageReminderResponse extends BaseListInfo {
   item_list: MileageReminderInfo[];
 }
+
+export interface UnusedDeivceRequest extends PageInfoParams {
+  company_id?: string;
+  store_id?: string;
+}
+
+export interface UnusedDeivceInfo {
+  company_name?: string;
+  device_id?: string;
+  mtime?: string;
+  onset_time?: string;
+  phone?: string;
+  sn?: string;
+  store_name?: string;
+}
+
+export interface UnusedDeviceResponse extends BaseListInfo {
+  record_list: UnusedDeivceInfo[];
+}

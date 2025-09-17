@@ -111,3 +111,5 @@ export const DEVICE_TYPE_OPTIONS = [
   { label: '路虎揽胜', value: DeviceType.lhls },
   { label: '路虎发运/发现', value: DeviceType.lsfx },
 ];
+
+export const SecretKey = '6794xzUkZDgRh4DUCuq54pJs';

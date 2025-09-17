@@ -217,6 +217,12 @@ export default defineConfig({
           component: './EquipmentManage/MileageReminder',
           access: 'mileageReminder',
         },
+        {
+          path: '/equipment/unused-device',
+          name: '失效设备',
+          component: './EquipmentManage/UnusedDeviceList',
+          access: 'mileageReminder',
+        },
       ],
     },
     {
@@ -313,7 +319,7 @@ export default defineConfig({
           access: 'warehouseModule',
         },
         {
-          path: '/dashboard/store/:id',
+          path: '/dashboard/store/:storeId',
           name: '门店看板',
           component: './Dashboard/StoreDetail',
           access: 'warehouseModule',
@@ -327,7 +333,7 @@ export default defineConfig({
       // 标识需要进行转换的请求的url
       // target: 'https://test.ai-kaka.com:443',
       target: 'https://eda.ai-kaka.com:443',
-      //   target: 'http://192.168.8.227:8888',
+      // target: 'http://192.168.8.232:8888',
       changeOrigin: true, // 允许域名进行转换
     },
   },

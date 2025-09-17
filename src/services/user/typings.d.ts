@@ -58,3 +58,14 @@ export interface ModifyRoleParams {
   user_id: string;
   role_id: string;
 }
+
+export interface CaptchaRequest {
+  nonce: string;
+  signature: string;
+  timestamp: number;
+}
+
+export interface CaptchaResponse {
+  captcha_id: string;
+  img: string;
+}
