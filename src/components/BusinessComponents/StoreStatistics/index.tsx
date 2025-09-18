@@ -361,7 +361,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
         </Col>
       </Row>
       <Row gutter={16} style={{ marginTop: '16px' }}>
-        <Col span={8}>
+        <Col span={12}>
           <Spin spinning={loadingStates.deviceBound} size="small">
             <Statistic
               title="安装绑定"
@@ -371,7 +371,7 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
             />
           </Spin>
         </Col>
-        <Col span={8}>
+        <Col span={12}>
           <Spin spinning={loadingStates.deviceBound} size="small">
             <Statistic
               title="安装未绑定"
@@ -381,7 +381,9 @@ const StoreStatistics: React.FC<StoreStatisticsProps> = ({
             />
           </Spin>
         </Col>
-        <Col span={8}>
+      </Row>
+      <Row gutter={16} style={{ marginTop: '16px' }}>
+        <Col span={12}>
           <Spin spinning={loadingStates.deviceUnused} size="small">
             <Statistic
               title="失效设备"

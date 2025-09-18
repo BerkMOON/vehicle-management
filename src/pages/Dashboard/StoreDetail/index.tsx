@@ -7,18 +7,30 @@ import { BusinessTaskParams } from '@/services/audit/typings.d';
 import { DeviceAPI } from '@/services/device/DeviceController';
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams } from '@umijs/max';
-import { Button, Card, Col, DatePicker, Empty, Form, Row, Spin } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Empty,
+  Form,
+  Radio,
+  Row,
+  Spin,
+} from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
 
 const { RangePicker } = DatePicker;
 
-interface WeeklyData {
-  week: string;
+interface PeriodData {
+  period: string;
   deviceActivated: number;
   deviceBound: number;
   taskCount: number;
 }
+
+type TimeDimension = 'week' | 'month';
 
 interface DeviceStats {
   total: number;
@@ -35,7 +47,8 @@ const StoreDetail: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [deviceStatsLoading, setDeviceStatsLoading] = useState(false);
-  const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
+  const [periodData, setPeriodData] = useState<PeriodData[]>([]);
+  const [timeDimension, setTimeDimension] = useState<TimeDimension>('week');
   const [deviceStats, setDeviceStats] = useState<DeviceStats>({
     total: 0,
     activated: 0,
@@ -52,17 +65,24 @@ const StoreDetail: React.FC = () => {
     dayjs().endOf('week'),
   ]);
 
-  // 生成周数据
-  const generateWeeks = (startDate: Dayjs, endDate: Dayjs): string[] => {
-    const weeks: string[] = [];
-    let current = startDate.startOf('week');
+  // 生成时间周期数据（周或月）
+  const generatePeriods = (
+    startDate: Dayjs,
+    endDate: Dayjs,
+    dimension: TimeDimension,
+  ): string[] => {
+    const periods: string[] = [];
+    let current =
+      dimension === 'week'
+        ? startDate.startOf('week')
+        : startDate.startOf('month');
 
-    while (current.isBefore(endDate) || current.isSame(endDate, 'week')) {
-      weeks.push(current.format('YYYY-MM-DD'));
-      current = current.add(1, 'week');
+    while (current.isBefore(endDate) || current.isSame(endDate, dimension)) {
+      periods.push(current.format('YYYY-MM-DD'));
+      current = current.add(1, dimension);
     }
 
-    return weeks;
+    return periods;
   };
 
   // 获取设备状态统计数据
@@ -140,12 +160,13 @@ const StoreDetail: React.FC = () => {
     }
   };
 
-  // 获取设备周数据
-  const fetchWeeklyDeviceData = async (
-    week: string,
-  ): Promise<Partial<WeeklyData>> => {
-    const weekStart = dayjs(week).startOf('week');
-    const weekEnd = dayjs(week).endOf('week');
+  // 获取设备周期数据（周或月）
+  const fetchPeriodDeviceData = async (
+    period: string,
+    dimension: TimeDimension,
+  ): Promise<Partial<PeriodData>> => {
+    const periodStart = dayjs(period).startOf(dimension);
+    const periodEnd = dayjs(period).endOf(dimension);
 
     try {
       const [activatedRes, boundRes, taskRes] = await Promise.all([
@@ -153,8 +174,8 @@ const StoreDetail: React.FC = () => {
         DeviceAPI.getDeviceList({
           store_id: Number(currentStoreId),
           report_status: 'reported',
-          onset_start_time: weekStart.format('YYYY-MM-DD HH:mm:ss'),
-          onset_end_time: weekEnd.format('YYYY-MM-DD HH:mm:ss'),
+          onset_start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
+          onset_end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
           page: 1,
           limit: 1,
         }),
@@ -163,8 +184,8 @@ const StoreDetail: React.FC = () => {
           store_id: Number(currentStoreId),
           status: 'bound',
           report_status: 'reported',
-          onset_start_time: weekStart.format('YYYY-MM-DD HH:mm:ss'),
-          onset_end_time: weekEnd.format('YYYY-MM-DD HH:mm:ss'),
+          onset_start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
+          onset_end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
           page: 1,
           limit: 1,
         }),
@@ -174,8 +195,8 @@ const StoreDetail: React.FC = () => {
           limit: 1,
           status: 'all',
           store_id: Number(currentStoreId),
-          start_time: weekStart.format('YYYY-MM-DD HH:mm:ss'),
-          end_time: weekEnd.format('YYYY-MM-DD HH:mm:ss'),
+          start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
+          end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
         } as BusinessTaskParams),
       ]);
 
@@ -190,7 +211,10 @@ const StoreDetail: React.FC = () => {
         taskCount,
       };
     } catch (error) {
-      console.error(`获取第${week}周设备数据失败:`, error);
+      console.error(
+        `获取第${period}${dimension === 'week' ? '周' : '月'}设备数据失败:`,
+        error,
+      );
       return {};
     }
   };
@@ -199,33 +223,49 @@ const StoreDetail: React.FC = () => {
   const handleFormSubmit = (values: any) => {
     setCurrentStoreId(values.storeId);
     setDateRange(values.dateRange);
+    setTimeDimension(values.timeDimension);
 
     // 更新URL
     history.replace(`/dashboard/store/${values.storeId}`);
   };
 
-  // 获取所有周数据
-  const fetchAllWeeklyData = async () => {
+  // 获取所有周期数据
+  const fetchAllPeriodData = async () => {
     if (!currentStoreId) return;
 
     setLoading(true);
     try {
-      const weeks = generateWeeks(dateRange[0], dateRange[1]);
-      const weeklyResults: WeeklyData[] = [];
+      const periods = generatePeriods(
+        dateRange[0],
+        dateRange[1],
+        timeDimension,
+      );
+      const periodResults: PeriodData[] = [];
 
-      for (const week of weeks) {
-        const weekData = await fetchWeeklyDeviceData(week);
-        weeklyResults.push({
-          week: `${dayjs(week).format('MM/DD')} - ${dayjs(week)
+      for (const period of periods) {
+        const periodData = await fetchPeriodDeviceData(period, timeDimension);
+
+        let displayPeriod = '';
+        if (timeDimension === 'week') {
+          displayPeriod = `${dayjs(period).format('MM/DD')} - ${dayjs(period)
             .add(6, 'day')
-            .format('MM/DD')}`,
-          ...weekData,
-        } as WeeklyData);
+            .format('MM/DD')}`;
+        } else {
+          displayPeriod = dayjs(period).format('YYYY年MM月');
+        }
+
+        periodResults.push({
+          period: displayPeriod,
+          ...periodData,
+        } as PeriodData);
       }
 
-      setWeeklyData(weeklyResults);
+      setPeriodData(periodResults);
     } catch (error) {
-      console.error('获取门店周数据失败:', error);
+      console.error(
+        `获取门店${timeDimension === 'week' ? '周' : '月'}数据失败:`,
+        error,
+      );
     } finally {
       setLoading(false);
     }
@@ -234,15 +274,18 @@ const StoreDetail: React.FC = () => {
   // 重置表单
   const handleReset = () => {
     form.resetFields();
+    const initialDimension: TimeDimension = 'week';
     const initialValues = {
       storeId: currentStoreId,
+      timeDimension: initialDimension,
       dateRange: [
         dayjs().subtract(4, 'weeks').startOf('week'),
         dayjs().endOf('week'),
       ],
     };
+    setTimeDimension(initialDimension);
+    setDateRange(initialValues.dateRange as [Dayjs, Dayjs]);
     form.setFieldsValue(initialValues);
-    fetchAllWeeklyData();
   };
 
   useEffect(() => {
@@ -252,12 +295,13 @@ const StoreDetail: React.FC = () => {
       setTimeout(() => {
         form.setFieldsValue({
           storeId: currentStoreId,
+          timeDimension: 'week',
           dateRange: dateRange,
         });
       }, 500);
 
       // 有storeId时才获取数据
-      fetchAllWeeklyData();
+      fetchAllPeriodData();
       fetchDeviceStats();
     }
   }, []);
@@ -269,6 +313,7 @@ const StoreDetail: React.FC = () => {
       setTimeout(() => {
         form.setFieldsValue({
           storeId: currentStoreId,
+          timeDimension: timeDimension,
           dateRange: dateRange,
         });
       }, 500);
@@ -276,27 +321,27 @@ const StoreDetail: React.FC = () => {
   }, [currentStoreId]);
 
   useEffect(() => {
-    // 当门店或时间范围变化时重新获取数据
+    // 当门店、时间范围或时间维度变化时重新获取数据
     if (currentStoreId) {
-      fetchAllWeeklyData();
+      fetchAllPeriodData();
       fetchDeviceStats();
     }
-  }, [currentStoreId, dateRange]);
+  }, [currentStoreId, dateRange, timeDimension]);
 
   // 准备图表数据 - 将数据转换为适合折线图的格式
-  const chartData = weeklyData.flatMap((item) => [
+  const chartData = periodData.flatMap((item) => [
     {
-      week: item.week,
+      period: item.period,
       type: '已安装',
       value: item.deviceActivated,
     },
     {
-      week: item.week,
+      period: item.period,
       type: '已绑定',
       value: item.deviceBound,
     },
     {
-      week: item.week,
+      period: item.period,
       type: '工单数',
       value: item.taskCount,
     },
@@ -357,14 +402,47 @@ const StoreDetail: React.FC = () => {
           </Form.Item>
 
           <Form.Item
+            label="时间维度"
+            name="timeDimension"
+            rules={[{ required: true, message: '请选择时间维度' }]}
+          >
+            <Radio.Group
+              onChange={(e) => {
+                const dimension = e.target.value;
+                setTimeDimension(dimension);
+                // 根据维度重置时间范围
+                const newDateRange =
+                  dimension === 'week'
+                    ? [
+                        dayjs().subtract(4, 'weeks').startOf('week'),
+                        dayjs().endOf('week'),
+                      ]
+                    : [
+                        dayjs().subtract(5, 'months').startOf('month'),
+                        dayjs().endOf('month'),
+                      ];
+                setDateRange(newDateRange as [Dayjs, Dayjs]);
+                form.setFieldsValue({ dateRange: newDateRange });
+              }}
+            >
+              <Radio.Button value="week">按周</Radio.Button>
+              <Radio.Button value="month">按月</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+
+          <Form.Item
             label="时间范围"
             name="dateRange"
             rules={[{ required: true, message: '请选择时间范围' }]}
           >
             <RangePicker
-              picker="week"
-              placeholder={['开始周', '结束周']}
-              format="YYYY年第WW周"
+              picker={timeDimension}
+              placeholder={
+                timeDimension === 'week'
+                  ? ['开始周', '结束周']
+                  : ['开始月', '结束月']
+              }
+              format={timeDimension === 'week' ? 'YYYY年第WW周' : 'YYYY年MM月'}
               style={{ width: 300 }}
             />
           </Form.Item>
@@ -579,7 +657,7 @@ const StoreDetail: React.FC = () => {
           <div style={{ height: '400px' }}>
             <LineChart
               data={chartData}
-              xField="week"
+              xField="period"
               yField="value"
               seriesField="type"
             />
@@ -590,7 +668,7 @@ const StoreDetail: React.FC = () => {
       </Card>
 
       <Row gutter={16}>
-        {weeklyData.map((item, index) => (
+        {periodData.map((item, index) => (
           <Col
             xs={24}
             sm={12}
@@ -599,7 +677,7 @@ const StoreDetail: React.FC = () => {
             key={index}
             style={{ marginBottom: '16px' }}
           >
-            <Card size="small" title={item.week}>
+            <Card size="small" title={item.period}>
               <Row gutter={8}>
                 <Col span={8}>
                   <div>

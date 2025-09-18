@@ -494,8 +494,8 @@ const AuditDashboard: React.FC = () => {
               sm={12}
               md={8}
               lg={6}
-              xl={4.8}
-              xxl={4.8}
+              xl={4}
+              xxl={4}
               key={store.store_id}
               style={{ marginBottom: '16px' }}
             >
