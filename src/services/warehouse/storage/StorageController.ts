@@ -1,6 +1,7 @@
 import { ResponseInfoType } from '@/types/common';
 import { request } from '@umijs/max';
 import type {
+  DeviceTypeResponse,
   ReturnListResponse,
   ReturnParams,
   StorageListResponse,
@@ -48,4 +49,18 @@ export const StorageAPI = {
       method: 'POST',
       data,
     }),
+
+  /**
+   * 获取设备类型
+   * GET /api/admin/warehouse/getDeviceTypes
+   * 接口ID：353750849
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-353750849
+   */
+  getDeviceTypes: () =>
+    request<ResponseInfoType<DeviceTypeResponse>>(
+      `${API_PREFIX}/getDeviceTypes`,
+      {
+        method: 'GET',
+      },
+    ),
 };

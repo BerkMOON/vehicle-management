@@ -70,3 +70,13 @@ export interface ReturnItem {
 export interface ReturnListResponse extends BaseListInfo {
   record_list: ReturnItem[];
 }
+
+export interface DeviceType {
+  type_enum?: number;
+  type_name?: string;
+  type_sign?: string;
+}
+
+export interface DeviceTypeResponse {
+  type_list: DeviceType[];
+}

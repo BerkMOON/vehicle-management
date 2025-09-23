@@ -1,7 +1,7 @@
-import { DEVICE_TYPE_OPTIONS } from '@/constants';
 import { WarehouseUpload } from '@/pages/WarehouseManage/Components/WarehouseUpload';
 import { OssSence } from '@/services/warehouse/oss/typings.d';
-import { Form, FormInstance, Input, InputNumber, Select } from 'antd';
+import { Form, FormInstance, Input, InputNumber } from 'antd';
+import DeviceTypeSelect from '../Components/DeivceTypeSelect';
 
 interface InboundFormProps {
   form: FormInstance;
@@ -50,11 +50,7 @@ export const InboundForm: React.FC<InboundFormProps> = ({
             },
           ]}
         >
-          <Select
-            placeholder="请选择设备类型"
-            allowClear
-            options={DEVICE_TYPE_OPTIONS}
-          />
+          <DeviceTypeSelect style={{ width: '100%' }} />
         </Form.Item>
       )}
       <Form.Item

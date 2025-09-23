@@ -1,8 +1,8 @@
 import CompanySelect from '@/components/BusinessComponents/CompanySelect';
 import StoreSelect from '@/components/BusinessComponents/StoreSelect';
-import { DEVICE_TYPE_OPTIONS } from '@/constants';
 import { INBOUND_STATUS } from '@/services/warehouse/inbound/typings.d';
 import { Col, DatePicker, Form, Input, Select } from 'antd';
+import DeviceTypeSelect from '../Components/DeivceTypeSelect';
 import HandlerSelect from '../Components/HandlerSelect';
 
 const { RangePicker } = DatePicker;
@@ -30,12 +30,7 @@ export const searchForm = (
     </Col>
     <Col>
       <Form.Item name="device_type" label="设备类型">
-        <Select
-          style={{ width: '200px' }}
-          placeholder="请选择设备类型"
-          allowClear
-          options={DEVICE_TYPE_OPTIONS}
-        />
+        <DeviceTypeSelect />
       </Form.Item>
     </Col>
     <Col>

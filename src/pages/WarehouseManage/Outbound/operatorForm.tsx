@@ -1,10 +1,10 @@
 import CompanySelect from '@/components/BusinessComponents/CompanySelect';
 import StoreSelect from '@/components/BusinessComponents/StoreSelect';
-import { DEVICE_TYPE_OPTIONS } from '@/constants';
-import { Form, Input, Select } from 'antd';
+import { Form, Input } from 'antd';
 import type { FormInstance } from 'antd/es/form';
 import { useWatch } from 'antd/es/form/Form';
 import React from 'react';
+import DeviceTypeSelect from '../Components/DeivceTypeSelect';
 
 interface OutboundFormProps {
   form: FormInstance;
@@ -37,11 +37,7 @@ export const OutboundForm: React.FC<OutboundFormProps> = ({
             },
           ]}
         >
-          <Select
-            placeholder="请选择设备类型"
-            allowClear
-            options={DEVICE_TYPE_OPTIONS}
-          />
+          <DeviceTypeSelect style={{ width: '100%' }} />
         </Form.Item>
       )}
       <Form.Item

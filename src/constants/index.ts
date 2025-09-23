@@ -90,26 +90,4 @@ export const TASK_STATUS_OPTIONS = [
   { label: TaskStatusLabel.Rejected, value: TaskStatus.Rejected },
 ];
 
-export enum DeviceType {
-  common = 'common',
-  audi = 'audi',
-  audiQ4 = 'audi_q4',
-  lincoln = 'lincoln',
-  lhws = 'landRover_WeiShi',
-  lhX = 'landRover_XELXFL',
-  lhls = 'landRover_LanSheng',
-  lsfx = 'landRover_Discovery',
-}
-
-export const DEVICE_TYPE_OPTIONS = [
-  { label: '通用型', value: DeviceType.common },
-  { label: '奥迪专用型', value: DeviceType.audi },
-  { label: '林肯专用型', value: DeviceType.lincoln },
-  { label: '奥迪Q4专用型', value: DeviceType.audiQ4 },
-  { label: '路虎卫士', value: DeviceType.lhws },
-  { label: '路虎xel/xfl', value: DeviceType.lhX },
-  { label: '路虎揽胜', value: DeviceType.lhls },
-  { label: '路虎发运/发现', value: DeviceType.lsfx },
-];
-
 export const SecretKey = '6794xzUkZDgRh4DUCuq54pJs';
