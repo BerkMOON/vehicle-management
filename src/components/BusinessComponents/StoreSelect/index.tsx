@@ -37,9 +37,15 @@ const StoreSelect: React.FC<StoreSelectProps> = ({
       company_id: companyId,
     });
 
+    // 在第一页添加"全部门店"选项
+    const list =
+      page === 1
+        ? [{ id: ':storeId', name: '全部门店' }, ...data.store_list]
+        : data.store_list;
+
     return {
-      list: data.store_list,
-      total: data.meta.total_count,
+      list,
+      total: data.meta.total_count + (page === 1 ? 1 : 0),
     };
   };
 
@@ -55,12 +61,16 @@ const StoreSelect: React.FC<StoreSelectProps> = ({
     }
   }, [companyId]);
 
+  // 当 value 是 ':storeId' 时显示"全部门店"
+  const displayValue = value === ':storeId' ? '全部门店' : value;
+  const displayPlaceholder = value === ':storeId' ? '全部门店' : placeholder;
+
   return (
     <InfiniteSelect
       key={key}
       ref={ref}
-      placeholder={placeholder}
-      value={value}
+      placeholder={displayPlaceholder}
+      value={displayValue}
       onChange={onChange}
       disabled={disabled}
       style={{ width: '100%', ...style }}

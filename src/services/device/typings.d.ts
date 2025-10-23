@@ -99,3 +99,22 @@ export interface UnusedDeivceInfo {
 export interface UnusedDeviceResponse extends BaseListInfo {
   record_list: UnusedDeivceInfo[];
 }
+
+export interface OldDeviceInfo {
+  alg_version?: string;
+  brand?: string;
+  car_model?: string;
+  company_name?: string;
+  create_time?: string;
+  cur_version?: string;
+  device_id?: string;
+  modify_time?: string;
+  onset_time?: string;
+  phone?: string;
+  sn?: string;
+  store_name?: string;
+}
+
+export interface OldDeviceResponse extends BaseListInfo {
+  record_list: OldDeviceInfo[];
+}

@@ -11,6 +11,7 @@ export enum PERMISSION_CODE {
   TASK_MANAGER = 'task_manager',
   TASK_LIST = 'list_task',
   TASK_DETAIL = 'task_detail',
+  LIST_MACHINE_RESULT = 'list_machine_result',
   LIST_CLUE = 'list_clue',
   LIST_HANDLER = 'list_handler',
   LIST_ABNORMAL_TASK = 'list_abnormal_task',
@@ -29,6 +30,7 @@ export enum PERMISSION_CODE {
   LOSS_REMINDER = 'loss_notification_module',
   MILEAGE_REMINDER = 'device_mileage_module',
   UNUSED_DEVICE_MODULE = 'unused_device_module',
+  OLD_DEVICE_MODULE = 'unused_device_module', // todo
   OTA_MODULE = 'ota_module',
   WAREHOUSE_MODULE = 'warehouse_module',
   WAREHOUSE_INBOUND_MODULE = 'warehouse_inbound_module',

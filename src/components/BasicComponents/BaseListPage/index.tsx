@@ -2,6 +2,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { useSearchParams } from '@umijs/max';
 import type { TableProps } from 'antd';
 import { Button, Form, Row, Space, Table } from 'antd';
+import dayjs from 'dayjs';
 // import { random } from 'lodash';
 import React, {
   forwardRef,
@@ -88,11 +89,70 @@ const BaseListPage = forwardRef<BaseListPageRef, BaseListPageProps>(
         urlParams[key] = value;
       });
 
-      form.setFieldsValue(urlParams);
+      // 处理日期字段的恢复
+      const processedParams = { ...urlParams };
+      Object.keys(processedParams).forEach((key) => {
+        const value = processedParams[key];
+        // 检查是否是时间范围字段（通常包含 time 或 Range 关键词）
+        if (
+          (key.toLowerCase().includes('time') ||
+            key.toLowerCase().includes('range')) &&
+          typeof value === 'string'
+        ) {
+          try {
+            // 尝试解析为日期数组
+            const dates = value.split(',');
+            if (dates.length === 2) {
+              const parsedDates = dates.map((dateStr) => {
+                const trimmed = decodeURIComponent(dateStr.trim());
+
+                // 优先尝试我们的标准格式 YYYY-MM-DD HH:mm:ss
+                let parsed = dayjs(trimmed, 'YYYY-MM-DD HH:mm:ss');
+
+                // 如果标准格式失败，尝试默认解析
+                if (!parsed.isValid()) {
+                  parsed = dayjs(trimmed);
+                }
+
+                // 如果还是失败，尝试通过 JavaScript Date 构造函数（兼容 GMT 格式）
+                if (!parsed.isValid()) {
+                  try {
+                    const jsDate = new Date(trimmed);
+                    if (!isNaN(jsDate.getTime())) {
+                      parsed = dayjs(jsDate);
+                    }
+                  } catch (e) {
+                    console.warn(`Failed to parse date: ${trimmed}`);
+                  }
+                }
+
+                return parsed.isValid() ? parsed : null;
+              });
+
+              // 只有当两个日期都有效时才设置
+              if (parsedDates.every((date) => date !== null)) {
+                processedParams[key] = parsedDates;
+              }
+            }
+          } catch (error) {
+            // 如果解析失败，保持原值
+            console.warn(`Failed to parse date range for ${key}:`, error);
+          }
+        }
+      });
+
+      form.setFieldsValue(processedParams);
+
+      // 使用处理后的参数进行数据请求
+      let requestParams = { ...processedParams };
+      if (searchParamsTransform) {
+        requestParams = searchParamsTransform(processedParams);
+      }
+
       fetchTableData({
         page: 1,
         limit: pageInfo.limit,
-        ...urlParams,
+        ...requestParams,
         ...defaultSearchParams,
       });
     }, []);
@@ -103,7 +163,28 @@ const BaseListPage = forwardRef<BaseListPageRef, BaseListPageProps>(
         const newParams = new URLSearchParams();
         Object.entries(values).forEach(([key, value]) => {
           if (value) {
-            newParams.set(key, value as string);
+            // 特殊处理日期范围
+            if (
+              Array.isArray(value) &&
+              value.length === 2 &&
+              value[0] &&
+              value[1]
+            ) {
+              // 检查是否是 dayjs 对象
+              if (typeof value[0] === 'object' && value[0].format) {
+                // 使用 YYYY-MM-DD HH:mm:ss 格式，更简洁且易于解析
+                newParams.set(
+                  key,
+                  `${value[0].format('YYYY-MM-DD HH:mm:ss')},${value[1].format(
+                    'YYYY-MM-DD HH:mm:ss',
+                  )}`,
+                );
+              } else {
+                newParams.set(key, value.join(','));
+              }
+            } else {
+              newParams.set(key, value as string);
+            }
           }
         });
         newParams.set('page', '1'); // 搜索时重置为第一页
@@ -124,21 +205,49 @@ const BaseListPage = forwardRef<BaseListPageRef, BaseListPageProps>(
     const handlePageChange = useCallback(
       (page: number, pageSize: number) => {
         let formValues = form.getFieldsValue();
-        if (searchParamsTransform) {
-          formValues = searchParamsTransform(formValues);
-        }
-        const newParams = new URLSearchParams(searchParams);
+
+        // 更新 URL 参数，包括表单数据
+        const newParams = new URLSearchParams();
+        Object.entries(formValues).forEach(([key, value]) => {
+          if (value) {
+            // 特殊处理日期范围
+            if (
+              Array.isArray(value) &&
+              value.length === 2 &&
+              value[0] &&
+              value[1]
+            ) {
+              // 检查是否是 dayjs 对象
+              if (typeof value[0] === 'object' && value[0].format) {
+                // 使用 YYYY-MM-DD HH:mm:ss 格式，更简洁且易于解析
+                newParams.set(
+                  key,
+                  `${value[0].format('YYYY-MM-DD HH:mm:ss')},${value[1].format(
+                    'YYYY-MM-DD HH:mm:ss',
+                  )}`,
+                );
+              } else {
+                newParams.set(key, value.join(','));
+              }
+            } else {
+              newParams.set(key, value as string);
+            }
+          }
+        });
         newParams.set('page', page.toString());
         newParams.set('limit', pageSize.toString());
         setSearchParams(newParams);
 
+        if (searchParamsTransform) {
+          formValues = searchParamsTransform(formValues);
+        }
         fetchTableData({
           page,
           limit: pageSize,
           ...formValues,
         });
       },
-      [fetchTableData, form, searchParams, setSearchParams],
+      [fetchTableData, form, setSearchParams, searchParamsTransform],
     );
 
     const handleReset = useCallback(() => {

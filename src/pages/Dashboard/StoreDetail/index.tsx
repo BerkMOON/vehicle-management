@@ -27,6 +27,7 @@ interface PeriodData {
   period: string;
   deviceActivated: number;
   deviceBound: number;
+  totalActivated: number;
   taskCount: number;
 }
 
@@ -169,36 +170,44 @@ const StoreDetail: React.FC = () => {
     const periodEnd = dayjs(period).endOf(dimension);
 
     try {
-      const [activatedRes, boundRes, taskRes] = await Promise.all([
-        // 已激活设备
-        DeviceAPI.getDeviceList({
-          store_id: Number(currentStoreId),
-          report_status: 'reported',
-          onset_start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
-          onset_end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
-          page: 1,
-          limit: 1,
-        }),
-        // 已绑定设备
-        DeviceAPI.getDeviceList({
-          store_id: Number(currentStoreId),
-          status: 'bound',
-          report_status: 'reported',
-          onset_start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
-          onset_end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
-          page: 1,
-          limit: 1,
-        }),
-        // 工单数据
-        AuditAPI.getBTaskList({
-          page: 1,
-          limit: 1,
-          status: 'all',
-          store_id: Number(currentStoreId),
-          start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
-          end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
-        } as BusinessTaskParams),
-      ]);
+      const [activatedRes, boundRes, totalActivatedRes, taskRes] =
+        await Promise.all([
+          // 已激活设备（时间段内新安装的）
+          DeviceAPI.getDeviceList({
+            store_id: Number(currentStoreId),
+            report_status: 'reported',
+            onset_start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
+            onset_end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
+            page: 1,
+            limit: 1,
+          }),
+          // 已绑定设备（时间段内新绑定的）
+          DeviceAPI.getDeviceList({
+            store_id: Number(currentStoreId),
+            status: 'bound',
+            report_status: 'reported',
+            onset_start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
+            onset_end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
+            page: 1,
+            limit: 1,
+          }),
+          // 已安装设备总数（全量统计，不限制时间）
+          DeviceAPI.getDeviceList({
+            store_id: Number(currentStoreId),
+            report_status: 'reported',
+            page: 1,
+            limit: 1,
+          }),
+          // 工单数据
+          AuditAPI.getBTaskList({
+            page: 1,
+            limit: 1,
+            status: 'all',
+            store_id: Number(currentStoreId),
+            start_time: periodStart.format('YYYY-MM-DD HH:mm:ss'),
+            end_time: periodEnd.format('YYYY-MM-DD HH:mm:ss'),
+          } as BusinessTaskParams),
+        ]);
 
       const taskCount =
         taskRes.response_status.code === SuccessCode.SUCCESS
@@ -208,6 +217,7 @@ const StoreDetail: React.FC = () => {
       return {
         deviceActivated: activatedRes.data.meta.total_count,
         deviceBound: boundRes.data.meta.total_count,
+        totalActivated: totalActivatedRes.data.meta.total_count,
         taskCount,
       };
     } catch (error) {
@@ -339,6 +349,11 @@ const StoreDetail: React.FC = () => {
       period: item.period,
       type: '已绑定',
       value: item.deviceBound,
+    },
+    {
+      period: item.period,
+      type: '已安装设备总数',
+      value: item.totalActivated,
     },
     {
       period: item.period,
@@ -679,7 +694,7 @@ const StoreDetail: React.FC = () => {
           >
             <Card size="small" title={item.period}>
               <Row gutter={8}>
-                <Col span={8}>
+                <Col span={6}>
                   <div>
                     已安装:{' '}
                     <span style={{ color: '#52c41a' }}>
@@ -687,13 +702,21 @@ const StoreDetail: React.FC = () => {
                     </span>
                   </div>
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                   <div>
                     已绑定:{' '}
                     <span style={{ color: '#1890ff' }}>{item.deviceBound}</span>
                   </div>
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
+                  <div>
+                    总设备:{' '}
+                    <span style={{ color: '#722ed1' }}>
+                      {item.totalActivated}
+                    </span>
+                  </div>
+                </Col>
+                <Col span={6}>
                   <div>
                     工单数:{' '}
                     <span style={{ color: '#f5222d' }}>{item.taskCount}</span>

@@ -121,6 +121,12 @@ export default defineConfig({
           access: 'abnormalClueList',
         },
         {
+          path: '/review/highTask',
+          name: '高分线索列表',
+          component: './ReviewManage/HighTask',
+          access: 'highTaskList',
+        },
+        {
           path: '/review/abnormalClue/:clueId',
           name: '异常线索详情',
           component: './ReviewManage/Task/Detail',
@@ -222,6 +228,12 @@ export default defineConfig({
           name: '失效设备',
           component: './EquipmentManage/UnusedDeviceList',
           access: 'mileageReminder',
+        },
+        {
+          path: '/equipment/old-device',
+          name: '旧版本设备',
+          component: './EquipmentManage/OldDeviceList',
+          access: 'oldDeviceList',
         },
       ],
     },

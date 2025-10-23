@@ -9,6 +9,7 @@ import type {
   LossResponse,
   MileageReminderRequest,
   MileageReminderResponse,
+  OldDeviceResponse,
   UnusedDeivceRequest,
   UnusedDeviceResponse,
 } from './typings';
@@ -73,4 +74,21 @@ export const DeviceAPI = {
         params,
       },
     ),
+
+  /**
+   * 未升级设备列表
+   * GET /api/admin/device/unused/listNotUpdated
+   * 接口ID：364806846
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-364806846
+   */
+  getUnusedDeviceListNotUpdated: (params?: UnusedDeivceRequest) =>
+    request<ResponseInfoType<OldDeviceResponse>>(
+      `${API_PREFIX}/unused/listNotUpdated`,
+      {
+        method: 'GET',
+        params,
+      },
+    ),
 };
+
+export default DeviceAPI;

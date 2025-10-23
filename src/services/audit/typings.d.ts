@@ -1,4 +1,4 @@
-import { BaseListInfo, StatusInfo } from '@/types/common';
+import { BaseListInfo, PageInfoParams, StatusInfo } from '@/types/common';
 export interface AuditInfo {
   task_id: number;
   device_id: string;
@@ -166,4 +166,33 @@ export interface BlackListInfo {
 
 export interface BlackListResponse {
   item_list: BlackListInfo[];
+}
+
+export interface HighTaskItem {
+  audit_id?: string;
+  clue_id?: string;
+  create_time?: string;
+  device_id?: string;
+  id?: number;
+  modify_time?: string;
+  overall_score?: number;
+  sub_scores?: string;
+  tags?: string;
+}
+
+export interface HighTaskList extends BaseListInfo {
+  result_list: HighTaskItem[];
+}
+export interface HighTaskParams extends PageInfoParams {
+  device_id?: string;
+  end_time?: string;
+  /**
+   * 分数乘100
+   */
+  max_score?: number;
+  /**
+   * 分数乘100
+   */
+  min_score?: number;
+  start_time?: string;
 }

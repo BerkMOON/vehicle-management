@@ -16,6 +16,8 @@ import {
   AuditTaskParams,
   BlackListResponse,
   BusinessTaskParams,
+  HighTaskList,
+  HighTaskParams,
 } from './typings';
 
 const API_PREFIX = '/api/admin/audit';
@@ -154,5 +156,17 @@ export const AuditAPI = {
     request<ResponseInfoType<null>>(`${BLACK_API_PREFIX}/delete`, {
       method: 'POST',
       data: params,
+    }),
+
+  /**
+   * 机审结果列表
+   * GET /api/admin/audit/listMachineResult
+   * 接口ID：356445204
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-356445204
+   */
+  listMachineResult: (params: HighTaskParams) =>
+    request<ResponseInfoType<HighTaskList>>(`${API_PREFIX}/listMachineResult`, {
+      method: 'GET',
+      params,
     }),
 };

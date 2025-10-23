@@ -88,6 +88,17 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
         (endpoint) => endpoint.code === PERMISSION_CODE.TASK_LIST,
       );
     },
+    highTaskList: () => {
+      const auditModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.AUDIT_MODULE,
+      );
+      const taskManager = auditModule?.children.find(
+        (child) => child.code === PERMISSION_CODE.TASK_MANAGER,
+      );
+      return taskManager?.endpoints.find(
+        (endpoint) => endpoint.code === PERMISSION_CODE.LIST_MACHINE_RESULT,
+      );
+    },
     // 任务详情
     taskDetail: () => {
       const auditModule = initialState?.authority?.find(
@@ -251,6 +262,14 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
       );
       return !!deviceModule?.children.find(
         (child) => child.code === PERMISSION_CODE.UNUSED_DEVICE_MODULE,
+      );
+    },
+    oldDeviceList: () => {
+      const deviceModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.DEVICE_MODULE,
+      );
+      return !!deviceModule?.children.find(
+        (child) => child.code === PERMISSION_CODE.OLD_DEVICE_MODULE,
       );
     },
     // 设备OTA
