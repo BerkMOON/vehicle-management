@@ -22,7 +22,7 @@ const TaskList: React.FC = () => {
         <a
           target="_blank"
           rel="noopener noreferrer"
-          href={`/review/task/${record.clue_id}`}
+          href={`/review/task/${record.clue_id}?isHighTask=true`}
         >
           {text}
         </a>

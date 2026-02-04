@@ -272,6 +272,15 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
         (child) => child.code === PERMISSION_CODE.OLD_DEVICE_MODULE,
       );
     },
+    // 设备版本查询
+    selectDeviceVersionModule: () => {
+      const deviceModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.DEVICE_MODULE,
+      );
+      return !!deviceModule?.children.find(
+        (child) => child.code === PERMISSION_CODE.SELECT_DEVICE_VERSION_MODULE,
+      );
+    },
     // 设备OTA
     otaVersion: () => {
       const otaModule = initialState?.authority?.find(

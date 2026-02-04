@@ -1,7 +1,9 @@
 import StoreStatistics from '@/components/BusinessComponents/StoreStatistics';
 import DualAxesChart from '@/components/ChartComponents/BaseChart/DualAxesChart';
+import GroupedBarChart from '@/components/ChartComponents/BaseChart/GroupedBarChart';
 import PieChart from '@/components/ChartComponents/BaseChart/PieChart';
 import { SuccessCode } from '@/constants';
+import { DeviceAPI } from '@/services/device/DeviceController';
 import { StoreAPI } from '@/services/store/StoreController';
 import { StoreItem } from '@/services/store/typing';
 import { CarOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -36,6 +38,7 @@ interface AllStoreData {
   deviceBound: number;
   deviceUnbound: number;
   unUsedCount: number;
+  mileageReportCount: number; // 设备里程上报数量
 }
 
 type FilterField = keyof AllStoreData;
@@ -63,6 +66,10 @@ const AuditDashboard: React.FC = () => {
     endTime: string;
   } | null>();
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [mileageData, setMileageData] = useState<
+    Record<string | number, number>
+  >({});
+  const [mileageLoading, setMileageLoading] = useState(false);
 
   const fetchStores = async () => {
     setStoresLoading(true);
@@ -88,6 +95,7 @@ const AuditDashboard: React.FC = () => {
       // 清空任务计数和所有数据
       setTaskCounts({});
       setStoreAllData({});
+      setMileageData({});
     } catch (error) {
       console.error('获取门店列表失败:', error);
     } finally {
@@ -95,10 +103,57 @@ const AuditDashboard: React.FC = () => {
     }
   };
 
+  // 获取设备里程上报数量
+  const fetchMileageData = async () => {
+    if (storeList.length === 0) return;
+
+    setMileageLoading(true);
+    try {
+      const promises = storeList.map(async (store) => {
+        try {
+          const response = await DeviceAPI.getMileageReminder({
+            store_id: Number(store.store_id),
+            company_id: 2,
+            page: 1,
+            limit: 1, // 只需要总数，所以limit设为1
+          });
+
+          if (response.response_status.code === SuccessCode.SUCCESS) {
+            const count = response.data.meta.total_count;
+            return {
+              storeId: store.store_id,
+              count: count,
+            };
+          }
+          return { storeId: store.store_id, count: 0 };
+        } catch (error) {
+          console.error(`获取门店 ${store.store_name} 里程数据失败:`, error);
+          return { storeId: store.store_id, count: 0 };
+        }
+      });
+
+      const results = await Promise.all(promises);
+      const mileageDataMap: Record<string | number, number> = {};
+      results.forEach(({ storeId, count }) => {
+        mileageDataMap[storeId] = count;
+      });
+
+      setMileageData(mileageDataMap);
+    } catch (error) {
+      console.error('获取里程数据失败:', error);
+    } finally {
+      setMileageLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
       await fetchStores();
+      // 延迟获取里程数据，确保门店列表已更新
+      setTimeout(() => {
+        fetchMileageData();
+      }, 100);
     } finally {
       setIsRefreshing(false);
     }
@@ -117,7 +172,10 @@ const AuditDashboard: React.FC = () => {
   ) => {
     setStoreAllData((prev) => ({
       ...prev,
-      [storeId]: data,
+      [storeId]: {
+        ...data,
+        mileageReportCount: mileageData[storeId] || 0, // 确保包含里程数据
+      },
     }));
   };
 
@@ -128,6 +186,13 @@ const AuditDashboard: React.FC = () => {
   useEffect(() => {
     fetchStores();
   }, []);
+
+  // 当门店列表更新时，获取里程数据
+  useEffect(() => {
+    if (storeList.length > 0) {
+      fetchMileageData();
+    }
+  }, [storeList]);
 
   // 原始统计
   const totalTasks = Object.values(taskCounts).reduce(
@@ -208,6 +273,7 @@ const AuditDashboard: React.FC = () => {
     { value: 'deviceBound', label: '安装绑定' },
     { value: 'deviceUnbound', label: '安装未绑定' },
     { value: 'unUsedCount', label: '失效设备' },
+    { value: 'mileageReportCount', label: '里程上报数量' },
   ];
 
   // 筛选后的门店列表
@@ -222,6 +288,9 @@ const AuditDashboard: React.FC = () => {
   ): number => {
     if (field === 'taskCount') {
       return taskCounts[storeId] || 0;
+    }
+    if (field === 'mileageReportCount') {
+      return mileageData[storeId] || 0;
     }
     const storeData = storeAllData[storeId];
     return storeData ? storeData[field] : 0;
@@ -251,6 +320,9 @@ const AuditDashboard: React.FC = () => {
     // 检查该字段数据是否已加载
     if (currentDisplayField === 'taskCount') {
       return taskCounts[store.store_id] !== undefined;
+    }
+    if (currentDisplayField === 'mileageReportCount') {
+      return mileageData[store.store_id] !== undefined;
     }
     return storeAllData[store.store_id] !== undefined;
   }).length;
@@ -284,6 +356,29 @@ const AuditDashboard: React.FC = () => {
     })
     .filter((item) => item !== null) // 过滤掉null值
     .sort((a, b) => b.percentage - a.percentage); // 按占比从高到低排序
+
+  // 准备分组柱状图数据
+  const groupedBarData = filteredStoreList
+    .map((store) => {
+      const storeData = storeAllData[store.store_id];
+      const deviceActivated = storeData?.deviceActivated || 0;
+      const mileageReportCount = mileageData[store.store_id] || 0;
+
+      return [
+        {
+          storeName: store.store_name,
+          type: '安装设备数量',
+          value: deviceActivated,
+        },
+        {
+          storeName: store.store_name,
+          type: '设备里程上报数量',
+          value: mileageReportCount,
+        },
+      ];
+    })
+    .flat()
+    .filter((item) => item.value > 0); // 只显示有数据的门店
 
   return (
     <div style={{ padding: '24px' }}>
@@ -442,6 +537,40 @@ const AuditDashboard: React.FC = () => {
           </Col>
         </Row>
 
+        {/* 各门店安装设备数量与里程上报数量对比 */}
+        <Row gutter={16} style={{ marginTop: '24px' }}>
+          <Col span={24}>
+            <Card title="各门店安装设备数量与里程上报数量对比">
+              {groupedBarData.length > 0 ? (
+                <div style={{ height: '400px' }}>
+                  <GroupedBarChart
+                    data={groupedBarData}
+                    xField="storeName"
+                    yField="value"
+                    seriesField="type"
+                    title="数量"
+                    height={400}
+                    formatter={(value) => `${value}台`}
+                    colors={['#1890ff', '#52c41a']}
+                  />
+                </div>
+              ) : (
+                <Empty
+                  description={
+                    mileageLoading ? '正在加载数据...' : '暂无设备数据'
+                  }
+                  style={{
+                    height: '400px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                  }}
+                />
+              )}
+            </Card>
+          </Col>
+        </Row>
+
         {/* 失效设备占比折线图 */}
         <Row gutter={16} style={{ marginTop: '24px' }}>
           <Col span={24}>
@@ -508,7 +637,10 @@ const AuditDashboard: React.FC = () => {
                   handleTaskCountChange(store.store_id, count)
                 }
                 onAllDataChange={(data) =>
-                  handleAllDataChange(store.store_id, data)
+                  handleAllDataChange(store.store_id, {
+                    ...data,
+                    mileageReportCount: mileageData[store.store_id] || 0,
+                  })
                 }
               />
             </Col>

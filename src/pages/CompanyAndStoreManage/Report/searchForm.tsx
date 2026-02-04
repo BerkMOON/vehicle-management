@@ -4,11 +4,17 @@ import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 
-export const searchForm = (
+export const getSearchForm = (
+  onStoreChange?: (value: string | number | undefined, option: any) => void,
+) => (
   <>
     <Col>
       <Form.Item name="store_id" label="门店">
-        <StoreSelect style={{ width: '194px' }} placeholder="请选择门店" />
+        <StoreSelect
+          style={{ width: '194px' }}
+          placeholder="请选择门店"
+          onChange={onStoreChange}
+        />
       </Form.Item>
     </Col>
     <Col>

@@ -13,6 +13,7 @@ const TaskDetail: React.FC = () => {
   const needAuditResult = searchParams.has('needAuditResult')
     ? searchParams.get('needAuditResult') === 'true'
     : true; // 默认true
+  const isHighTask = searchParams.has('isHighTask');
   const { isLogin, taskDetail } = useAccess();
   const taskDetailAccess = taskDetail();
 
@@ -44,7 +45,11 @@ const TaskDetail: React.FC = () => {
         <Card>
           {detail?.video_url && (
             <Card title="视频内容" style={{ marginBottom: 24 }}>
-              <ReactPlayer url={detail.video_url} controls playbackRate={2} />
+              <ReactPlayer
+                url={detail.video_url}
+                controls
+                playbackRate={isHighTask ? 1.25 : 2}
+              />
               <Descriptions style={{ marginTop: 8 }} column={2}>
                 <Descriptions.Item label="触发时间点">
                   {parseVideoTime(detail?.video_path)}

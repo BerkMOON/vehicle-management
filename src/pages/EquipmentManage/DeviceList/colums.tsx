@@ -1,4 +1,14 @@
-export const getColumns = () => {
+import { ModalControl } from '@/hooks/useModalControl';
+import { DeviceList } from '@/services/device/typings';
+import { Button } from 'antd';
+
+interface GetColumnsProps {
+  handleModalOpen: (modal: ModalControl, device: DeviceList) => void;
+  updateModal: ModalControl;
+}
+
+export const getColumns = (props: GetColumnsProps) => {
+  const { handleModalOpen, updateModal } = props;
   return [
     {
       title: '公司名称',
@@ -39,6 +49,22 @@ export const getColumns = () => {
     {
       title: '用户绑定时间',
       dataIndex: 'bind_time',
+    },
+    {
+      title: '操作',
+      key: 'action',
+      fixed: 'right',
+      width: 200,
+      render: (_: any, record: DeviceList) => {
+        return (
+          <Button
+            type="link"
+            onClick={() => handleModalOpen(updateModal, record)}
+          >
+            修改信息
+          </Button>
+        );
+      },
     },
   ];
 };

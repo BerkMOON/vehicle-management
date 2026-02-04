@@ -12,6 +12,7 @@ import type {
   OldDeviceResponse,
   UnusedDeivceRequest,
   UnusedDeviceResponse,
+  UpdateDeviceRequest,
 } from './typings';
 
 const API_PREFIX = '/api/admin/device';
@@ -89,6 +90,18 @@ export const DeviceAPI = {
         params,
       },
     ),
+
+  /**
+   * b端设备信息更新
+   * POST /api/business/device/update
+   * 接口ID：371435248
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-371435248
+   */
+  updateDevice: (params: UpdateDeviceRequest) =>
+    request<ResponseInfoType<null>>(`${API_PREFIX}/business/update`, {
+      method: 'POST',
+      data: params,
+    }),
 };
 
 export default DeviceAPI;

@@ -1,14 +1,14 @@
 import { AuditAPI } from '@/services/audit/AuditController';
 import { AuditTaskItem } from '@/services/audit/typings';
 import { DeviceAPI } from '@/services/device/DeviceController';
-import { DeviceList, LossInfo } from '@/services/device/typings';
+import { DeviceList } from '@/services/device/typings';
 import { PageContainer } from '@ant-design/pro-components';
 import { Navigate, useAccess } from '@umijs/max';
 import { Button, Card, Form, message, Row, Space, Spin } from 'antd';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import React, { useEffect, useState } from 'react';
-import { searchForm } from './searchForm';
+import { getSearchForm } from './searchForm';
 
 dayjs.extend(isoWeek);
 
@@ -32,8 +32,9 @@ const Report: React.FC = () => {
   const [weeklyDeviceStats, setWeeklyDeviceStats] = useState<DeviceStats>({
     reported: 0,
   });
+  const [monthlyInstalled, setMonthlyInstalled] = useState(0);
   const [weeklyTasks, setWeeklyTasks] = useState<AuditTaskItem[]>([]);
-  const [lossList, setLossList] = useState<LossInfo[]>([]);
+  const [storeName, setStoreName] = useState('贵店');
 
   // 获取默认时间范围（上周）
   const getDefaultDateRange = () => {
@@ -92,21 +93,36 @@ const Report: React.FC = () => {
       onset_start_time: dateRange?.startDate,
       onset_end_time: dateRange?.endDate,
     };
+    const targetDate = dateRange?.endDate ? dayjs(dateRange.endDate) : dayjs();
+    const monthStart = targetDate
+      .startOf('month')
+      .format('YYYY-MM-DD HH:mm:ss');
+    const monthEnd = targetDate.endOf('month').format('YYYY-MM-DD HH:mm:ss');
     setLoading(true);
     try {
-      const [reportedDevices] = await Promise.all([
+      const [reportedDevices, monthlyDevices] = await Promise.all([
         DeviceAPI.getDeviceList({
           ...weekParams,
           limit: 1,
           page: 1,
           report_status: 'reported',
         }),
+        DeviceAPI.getDeviceList({
+          ...apiParams,
+          limit: 1,
+          page: 1,
+          report_status: 'reported',
+          onset_start_time: monthStart,
+          onset_end_time: monthEnd,
+        }),
       ]);
 
       setWeeklyDeviceStats({
         reported: reportedDevices.data.meta.total_count,
       });
+      setMonthlyInstalled(monthlyDevices.data.meta.total_count);
     } catch (error) {
+      setMonthlyInstalled(0);
       message.error('获取设备统计数据失败');
     } finally {
       setLoading(false);
@@ -130,23 +146,24 @@ const Report: React.FC = () => {
     }
   };
 
-  const fetchLossData = async (params: any) => {
-    const { dateRange, ...apiParams } = params;
-    const { data } = await DeviceAPI.getLossNotifications({
-      ...apiParams,
-      start_time: dateRange.startDate,
-      end_time: dateRange.endDate,
-      limit: 100,
-      page: 1,
-    });
-    setLossList(data.record_list);
-  };
-
   const fetchData = (params: any) => {
     fetchDeviceStats(params);
     fetchWeeklyTasks(params);
     fetchWeekDeviceStats(params);
-    fetchLossData(params);
+  };
+
+  const handleStoreChange = (
+    _value: string | number | undefined,
+    option: any,
+  ) => {
+    if (!option) {
+      setStoreName('贵店');
+      return;
+    }
+
+    const label = Array.isArray(option) ? option[0]?.label : option?.label;
+
+    setStoreName(label || '贵店');
   };
 
   const handleSubmit = (values: any) => {
@@ -179,6 +196,7 @@ const Report: React.FC = () => {
     const defaultRange = getDefaultDateRange();
     setDateRange(defaultRange);
     form.resetFields();
+    setStoreName('贵店');
     setTimeout(() => {
       fetchData({ dateRange: getDefaultDateRange() });
     }, 0);
@@ -195,7 +213,7 @@ const Report: React.FC = () => {
   return (
     <PageContainer title="门店周报汇总">
       <Form form={form} layout="inline" onFinish={handleSubmit}>
-        <Row gutter={[16, 16]}>{searchForm}</Row>
+        <Row gutter={[16, 16]}>{getSearchForm(handleStoreChange)}</Row>
         <div style={{ textAlign: 'right', width: '100%', marginTop: 16 }}>
           <Space>
             <Button type="primary" htmlType="submit">
@@ -209,20 +227,21 @@ const Report: React.FC = () => {
       <Card title="设备情况汇总" style={{ marginTop: 24 }}>
         <Spin spinning={loading}>
           <div>
-            {` 您好，贵店在（${dayjs(dateRange.startDate).format(
+            {`${storeName}在（${dayjs(dateRange.startDate).format(
               'M月D日',
             )}-${dayjs(dateRange.endDate).format(
               'M月D日',
-            )}）新增安装易达安设备${weeklyDeviceStats.reported}台，累计安装${
+            )}）新增安装易达安设备${
+              weeklyDeviceStats.reported
+            }台，本月安装设备${monthlyInstalled}台，历史累计安装${
               deviceStats.reported
-            }台，其中已安装未绑定${deviceStats.reportedUnbound}台；`}
+            }台；`}
           </div>
           <div>
             {` 易达安在此期间推送事故线索${weeklyTasks.length}条，认领${
               weeklyTasks.filter((task) => task.status.name !== '待认领').length
             }条；`}
           </div>
-          <div>{`易达安在此期间推送流失提醒${lossList.length}台设备。`}</div>
           <div>以上详情请登录易达安售后小程序查看。</div>
         </Spin>
       </Card>

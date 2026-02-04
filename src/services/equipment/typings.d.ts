@@ -117,3 +117,12 @@ export enum EquipmentCStatus {
   binded = 'binded',
   deleted = 'deleted',
 }
+
+export interface GetDeviceVersion {
+  alg_version?: string;
+  create_time?: string;
+  cur_version?: string;
+  device_id?: string;
+  modify_time?: string;
+  sn?: string;
+}

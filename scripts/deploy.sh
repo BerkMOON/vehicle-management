@@ -3,8 +3,8 @@
 # 环境配置
 PROD_SERVER_HOST="8.136.123.166"
 PROD_SSH_KEY="/Users/berk/Downloads/pem/server.pem"
-TEST_SERVER_HOST="47.120.54.56"
-TEST_SSH_KEY="/Users/berk/Downloads/pem/nginx_admin.pem"
+TEST_SERVER_HOST="121.41.14.63"
+TEST_SSH_KEY="/Users/berk/Downloads/pem/incident_dev.pem"
 
 # 设置密钥文件权限
 echo "设置密钥权限..."

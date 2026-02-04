@@ -1,11 +1,19 @@
+import { COMMON_STATUS_CODE } from '@/constants';
 import { ModalControl } from '@/hooks/useModalControl';
 import { RoleList, UserInfo } from '@/services/user/typings';
 import { ColumnsProps } from '@/types/common';
 import { Divider } from 'antd';
 
-export const getColumns = (props: ColumnsProps<UserInfo>) => {
-  const { handleModalOpen, deleteModal, createOrModifyModal, updateRoleModal } =
-    props;
+export const getColumns = (
+  props: ColumnsProps<UserInfo> & { restoreModal?: ModalControl },
+) => {
+  const {
+    handleModalOpen,
+    deleteModal,
+    restoreModal,
+    createOrModifyModal,
+    updateRoleModal,
+  } = props;
 
   return [
     {
@@ -65,11 +73,27 @@ export const getColumns = (props: ColumnsProps<UserInfo>) => {
       key: 'action',
       render: (_: unknown, record: UserInfo) => (
         <>
-          <a
-            onClick={() => handleModalOpen(deleteModal as ModalControl, record)}
-          >
-            删除用户
-          </a>
+          {record.status.code === COMMON_STATUS_CODE.ACTIVE ? (
+            <>
+              <a
+                onClick={() =>
+                  handleModalOpen(deleteModal as ModalControl, record)
+                }
+              >
+                删除用户
+              </a>
+            </>
+          ) : (
+            <>
+              <a
+                onClick={() =>
+                  handleModalOpen(restoreModal as ModalControl, record)
+                }
+              >
+                恢复用户
+              </a>
+            </>
+          )}
           <Divider type="vertical" />
           <a onClick={() => handleModalOpen(createOrModifyModal, record)}>
             修改用户信息

@@ -118,3 +118,11 @@ export interface OldDeviceInfo {
 export interface OldDeviceResponse extends BaseListInfo {
   record_list: OldDeviceInfo[];
 }
+
+export interface UpdateDeviceRequest {
+  brand?: string;
+  car_model?: string;
+  phone?: string;
+  sn: string;
+  vin?: string;
+}

@@ -7,6 +7,7 @@ import {
   EquipmentRecordParams,
   EquipmentRelationList,
   EquipmentRelationParams,
+  GetDeviceVersion,
   UpdateEquipmentRecordParams,
   UpdateEquipmentRecordStatusParams,
   UpdateEquipmentRelationParams,
@@ -134,6 +135,19 @@ const EquipmentAPI = {
       method: 'POST',
       data: params,
     });
+  },
+
+  /**
+   * 查询设备版本
+   * GET /api/admin/device/getDeviceVersion
+   * 接口ID：380942829
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-380942829
+   */
+  getDeviceVersion: async (params?: { sn: string }) => {
+    return await request<ResponseInfoType<GetDeviceVersion>>(
+      `${API_PREFIX}/getDeviceVersion`,
+      { method: 'GET', params },
+    );
   },
 };
 

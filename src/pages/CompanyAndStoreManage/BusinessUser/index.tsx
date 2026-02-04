@@ -1,6 +1,7 @@
 import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
+import ChangeStatusForm from '@/components/BasicComponents/ChangeStatusForm';
 import CreateOrModifyForm from '@/components/BasicComponents/CreateOrModifyForm';
 import DeleteForm from '@/components/BasicComponents/DeleteForm';
 import { COMMON_STATUS } from '@/constants';
@@ -24,6 +25,7 @@ const TableList: React.FC = () => {
   const baseListRef = useRef<BaseListPageRef>(null);
   const createOrModifyModal = useModalControl();
   const deleteModal = useModalControl();
+  const restoreModal = useModalControl();
   const updateRoleModal = useModalControl();
   const [selectedUser, setSelectedUser] = React.useState<UserInfo | null>(null);
   const [form] = Form.useForm();
@@ -44,6 +46,7 @@ const TableList: React.FC = () => {
   const columns = getColumns({
     handleModalOpen,
     deleteModal,
+    restoreModal,
     createOrModifyModal,
     updateRoleModal,
   });
@@ -94,6 +97,17 @@ const TableList: React.FC = () => {
           status: COMMON_STATUS.DELETED,
         }}
         name="用户"
+        api={BusinessUserAPI.status}
+      />
+      <ChangeStatusForm
+        modalVisible={restoreModal.visible}
+        onCancel={restoreModal.close}
+        refresh={() => baseListRef.current?.getData()}
+        params={{
+          user_id: selectedUser?.id,
+          status: COMMON_STATUS.ACTIVE,
+        }}
+        name="恢复用户"
         api={BusinessUserAPI.status}
       />
       <CreateOrModifyForm

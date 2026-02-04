@@ -1,4 +1,8 @@
 export interface UserInfo {
+  status: {
+    name: string;
+    code: number;
+  };
   id: string;
   username: string;
   header_img: string;
