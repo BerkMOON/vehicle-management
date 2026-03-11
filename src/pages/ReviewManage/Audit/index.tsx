@@ -19,6 +19,17 @@ const AuditPage: React.FC = () => {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isStart, setIsStart] = useState(true);
+  const [pendingCount, setPendingCount] = useState<number | undefined>();
+
+  const { run: fetchPendingCount, loading: pendingCountLoading } = useRequest(
+    AuditAPI.countPendingTasks,
+    {
+      showError: false,
+      onSuccess: (data) => {
+        setPendingCount(data?.pending_task_num);
+      },
+    },
+  );
 
   const { run: getAuditTaskDetail } = useRequest(AuditAPI.getAuditTaskDetail, {
     showError: false,
@@ -89,6 +100,18 @@ const AuditPage: React.FC = () => {
         title: '审核页面',
         breadcrumb: {},
         extra: [
+          pendingCount !== undefined && (
+            <span key="pending" style={{ marginRight: 16 }}>
+              待审核数量：{pendingCount}
+            </span>
+          ),
+          <Button
+            key="pending"
+            loading={pendingCountLoading}
+            onClick={() => fetchPendingCount(undefined)}
+          >
+            查询待审核队列
+          </Button>,
           <Button
             key="sound"
             type={soundEnabled ? 'primary' : 'default'}

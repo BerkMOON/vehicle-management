@@ -25,6 +25,7 @@ const LineChart = forwardRef<any, ChartProps>((props, ref) => {
       tooltip: {
         marker: false,
       },
+      brushXFilter: true,
     },
     style: {
       lineWidth: 2,

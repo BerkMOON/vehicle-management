@@ -148,4 +148,16 @@ export const OutboundAPI = {
       method: 'POST',
       data,
     }),
+
+  /**
+   * 更新备注
+    POST /api/admin/warehouse/outbound/batch/updateExtra
+    * 接口ID：416084715
+    * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-416084715
+    */
+  updateExtra: (data: { batch_id: number; extra: string }) =>
+    request<ResponseInfoType<null>>(`${API_PREFIX_BATCH}/updateExtra`, {
+      method: 'POST',
+      data,
+    }),
 };

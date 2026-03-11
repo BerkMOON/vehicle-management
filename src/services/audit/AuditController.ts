@@ -169,4 +169,18 @@ export const AuditAPI = {
       method: 'GET',
       params,
     }),
+
+  /**
+   * 获取待审核任务数量
+   * GET /api/admin/audit/countPendingTasks
+   * 接口ID：417137562
+   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-417137562
+   */
+  countPendingTasks: () =>
+    request<ResponseInfoType<{ pending_task_num: number }>>(
+      `${API_PREFIX}/countPendingTasks`,
+      {
+        method: 'GET',
+      },
+    ),
 };

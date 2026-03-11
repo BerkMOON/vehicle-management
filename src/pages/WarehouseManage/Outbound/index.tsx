@@ -1,16 +1,19 @@
 import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
+import BaseModalForm from '@/components/BasicComponents/BaseModalForm';
 import CreateOrModifyForm from '@/components/BasicComponents/CreateOrModifyForm';
 import DeleteForm from '@/components/BasicComponents/DeleteForm';
 import { useModalControl } from '@/hooks/useModalControl';
+import { useRequest } from '@/hooks/useRequest';
 import { OutboundAPI } from '@/services/warehouse/outbound/OutboundController';
 import {
   OutboundRecordItem,
   OutboundRecordParams,
 } from '@/services/warehouse/outbound/typings.d';
 import { filterValues } from '@/utils/format';
-import { Form } from 'antd';
+import { Form, Input } from 'antd';
+import { ColumnsType } from 'antd/es/table';
 import React, { useRef, useState } from 'react';
 import { getColumns } from './columns';
 import { OutboundForm } from './operatorForm';
@@ -21,8 +24,16 @@ const OutboundList: React.FC = () => {
   const baseListRef = useRef<BaseListPageRef>(null);
   const createOrModifyModal = useModalControl();
   const deleteModal = useModalControl();
+  const updateExtraModal = useModalControl();
   const [selectedOutboundRecord, setSelectedOutboundRecord] =
     useState<OutboundRecordItem | null>(null);
+  const { loading: updateExtraLoading, run: runUpdateExtra } = useRequest(
+    OutboundAPI.updateExtra,
+    {
+      successMsg: '更新备注成功',
+      onSuccess: () => baseListRef.current?.getData(),
+    },
+  );
 
   const handleModalOpen = (
     modalControl: ReturnType<typeof useModalControl>,
@@ -36,10 +47,24 @@ const OutboundList: React.FC = () => {
     modalControl.open();
   };
 
+  const handleUpdateExtraOpen = (record: OutboundRecordItem) => {
+    setSelectedOutboundRecord(record);
+    updateExtraModal.open();
+  };
+
+  const handleUpdateExtraSubmit = async (values: { extra: string }) => {
+    if (!selectedOutboundRecord) return;
+    await runUpdateExtra({
+      batch_id: selectedOutboundRecord.id,
+      extra: values.extra ?? '',
+    });
+  };
+
   const columns = getColumns({
     handleModalOpen: handleModalOpen,
     createOrModifyModal,
     deleteModal,
+    onUpdateExtra: handleUpdateExtraOpen,
   });
 
   const fetchOutboundData = async (params: OutboundRecordParams) => {
@@ -71,7 +96,7 @@ const OutboundList: React.FC = () => {
       <BaseListPage
         ref={baseListRef}
         title="出库记录"
-        columns={columns}
+        columns={columns as ColumnsType}
         searchFormItems={searchForm}
         fetchData={fetchOutboundData}
         searchParamsTransform={searchParamsTransform}
@@ -113,6 +138,25 @@ const OutboundList: React.FC = () => {
         name="用户"
         api={OutboundAPI.deleteRecord}
       />
+      <BaseModalForm
+        title="更新备注"
+        visible={updateExtraModal.visible}
+        onCancel={() => {
+          updateExtraModal.close();
+          setSelectedOutboundRecord(null);
+        }}
+        onSubmit={handleUpdateExtraSubmit}
+        loading={updateExtraLoading}
+        initialValues={
+          selectedOutboundRecord
+            ? { extra: selectedOutboundRecord.extra ?? '' }
+            : undefined
+        }
+      >
+        <Form.Item name="extra" label="备注">
+          <Input.TextArea rows={4} placeholder="请输入备注" />
+        </Form.Item>
+      </BaseModalForm>
     </>
   );
 };

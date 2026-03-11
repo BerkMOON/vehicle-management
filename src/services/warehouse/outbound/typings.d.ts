@@ -23,7 +23,7 @@ export interface OutboundRecordItem {
   company_name: string;
   device_type: string;
   status: {
-    code: INBOUND_STATUS_CODE;
+    code: OUTBOUND_STATUS_CODE;
     name: string;
   };
 }
@@ -47,9 +47,11 @@ export enum INBOUND_STATUS {
   COMPLETED = 'completed',
 }
 
-export enum INBOUND_STATUS_CODE {
+export enum OUTBOUND_STATUS_CODE {
+  PENDING = 1,
+  COMMITING,
   COMPLETED,
-  PENDING,
+  DELETED,
 }
 
 export interface OutboundCreateRequest {
@@ -84,4 +86,11 @@ export const fieldMapping: Record<string, string> = {
   扫码日期: 'scan_date',
   设备型号: 'device_model',
   所属客户: 'customer',
+};
+
+export const OUTBOUND_STATUS_COLOR_MAP = {
+  [OUTBOUND_STATUS_CODE.PENDING]: 'blue',
+  [OUTBOUND_STATUS_CODE.COMMITING]: 'orange',
+  [OUTBOUND_STATUS_CODE.COMPLETED]: 'green',
+  [OUTBOUND_STATUS_CODE.DELETED]: 'red',
 };

@@ -1,4 +1,5 @@
 import { StorageItem } from '@/services/warehouse/storage/typings.d';
+import { EyeOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Button } from 'antd';
 
@@ -97,10 +98,10 @@ export const getColumns = () => {
       title: '操作',
       key: 'action',
       fixed: 'right',
-      width: 100,
       render: (_: any, record: StorageItem) => (
         <Button
           type="link"
+          icon={<EyeOutlined />}
           onClick={() => history.push(`/warehouse/storage/detail/${record.sn}`)}
         >
           详情

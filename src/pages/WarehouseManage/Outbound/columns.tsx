@@ -1,17 +1,32 @@
 import { ModalControl } from '@/hooks/useModalControl';
-import { INBOUND_STATUS_CODE } from '@/services/warehouse/inbound/typings.d';
-import { OutboundRecordItem } from '@/services/warehouse/outbound/typings.d';
+import {
+  OUTBOUND_STATUS_CODE,
+  OUTBOUND_STATUS_COLOR_MAP,
+  OutboundRecordItem,
+} from '@/services/warehouse/outbound/typings.d';
 import { StorageAPI } from '@/services/warehouse/storage/StorageController';
 import { StorageItem } from '@/services/warehouse/storage/typings';
 import { ColumnsProps } from '@/types/common';
 import { fetchAllPaginatedData } from '@/utils/request';
+import {
+  ArrowRightOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  FileExcelOutlined,
+} from '@ant-design/icons';
 import { history } from '@umijs/max';
-import { Button, message } from 'antd';
+import { Button, message, Tag } from 'antd';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 
-export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
-  const { handleModalOpen, createOrModifyModal, deleteModal } = props;
+export const getColumns = (
+  props: ColumnsProps<OutboundRecordItem> & {
+    onUpdateExtra?: (record: OutboundRecordItem) => void;
+  },
+) => {
+  const { handleModalOpen, createOrModifyModal, deleteModal, onUpdateExtra } =
+    props;
 
   const handleExport = async (record: OutboundRecordItem) => {
     try {
@@ -190,6 +205,13 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
       title: '状态',
       dataIndex: ['status', 'name'],
       key: 'status',
+      render: (text: string, record: OutboundRecordItem) => {
+        return (
+          <Tag color={OUTBOUND_STATUS_COLOR_MAP[record.status.code]}>
+            {text}
+          </Tag>
+        );
+      },
     },
     {
       title: '出库人',
@@ -204,12 +226,14 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
     {
       title: '操作',
       key: 'action',
+      fixed: 'right',
       render: (_: any, record: OutboundRecordItem) => (
         <>
-          {record.status.code === INBOUND_STATUS_CODE.PENDING ? (
+          {record.status.code === OUTBOUND_STATUS_CODE.PENDING ? (
             <>
               <Button
                 type="link"
+                icon={<DeleteOutlined />}
                 onClick={() =>
                   handleModalOpen(deleteModal as ModalControl, record)
                 }
@@ -218,12 +242,14 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
               </Button>
               <Button
                 type="link"
+                icon={<EditOutlined />}
                 onClick={() => handleModalOpen(createOrModifyModal, record)}
               >
                 修改
               </Button>
               <Button
                 type="link"
+                icon={<ArrowRightOutlined />}
                 onClick={() =>
                   history.push(`/warehouse/outbound/input/${record.id}`)
                 }
@@ -233,7 +259,11 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
             </>
           ) : (
             <>
-              <Button type="link" onClick={() => handleExport(record)}>
+              <Button
+                type="link"
+                onClick={() => handleExport(record)}
+                icon={<FileExcelOutlined />}
+              >
                 导出
               </Button>
               <Button
@@ -241,9 +271,19 @@ export const getColumns = (props: ColumnsProps<OutboundRecordItem>) => {
                 onClick={() =>
                   history.push(`/warehouse/outbound/detail/${record.id}`)
                 }
+                icon={<EyeOutlined />}
               >
                 详情
               </Button>
+              {onUpdateExtra && (
+                <Button
+                  type="link"
+                  onClick={() => onUpdateExtra(record)}
+                  icon={<EditOutlined />}
+                >
+                  更新备注
+                </Button>
+              )}
             </>
           )}
         </>

@@ -4,6 +4,12 @@ import {
   InboundRecordItem,
 } from '@/services/warehouse/inbound/typings.d';
 import { ColumnsProps } from '@/types/common';
+import {
+  ArrowRightOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Button } from 'antd';
 
@@ -66,6 +72,7 @@ export const getColumns = (props: ColumnsProps<InboundRecordItem>) => {
             <>
               <Button
                 type="link"
+                icon={<DeleteOutlined />}
                 onClick={() =>
                   handleModalOpen(deleteModal as ModalControl, record)
                 }
@@ -73,12 +80,14 @@ export const getColumns = (props: ColumnsProps<InboundRecordItem>) => {
                 删除批次
               </Button>
               <Button
+                icon={<EditOutlined />}
                 type="link"
                 onClick={() => handleModalOpen(createOrModifyModal, record)}
               >
                 修改
               </Button>
               <Button
+                icon={<ArrowRightOutlined />}
                 type="link"
                 onClick={() =>
                   history.push(`/warehouse/inbound/input/${record.id}`)
@@ -90,6 +99,7 @@ export const getColumns = (props: ColumnsProps<InboundRecordItem>) => {
           ) : (
             <Button
               type="link"
+              icon={<EyeOutlined />}
               onClick={() =>
                 history.push(`/warehouse/inbound/detail/${record.id}`)
               }
