@@ -345,6 +345,11 @@ export default defineConfig({
         },
       ],
     },
+    {
+      path: '/accident-loss',
+      name: '事故丢失处理',
+      component: './AccidentLoss',
+    },
   ],
   npmClient: 'pnpm',
   proxy: {

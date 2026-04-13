@@ -195,9 +195,13 @@ export const getColumns = (
       dataIndex: 'store_name',
       key: 'store_name',
     },
-
     {
-      title: '出库时间',
+      title: '创建时间',
+      dataIndex: 'create_time',
+      key: 'create_time',
+    },
+    {
+      title: '修改时间',
       dataIndex: 'modify_time',
       key: 'modify_time',
     },

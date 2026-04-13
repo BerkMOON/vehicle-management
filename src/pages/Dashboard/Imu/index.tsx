@@ -8,6 +8,7 @@ import {
   Select,
   Space,
   Spin,
+  Switch,
   Table,
   Typography,
   Upload,
@@ -16,6 +17,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import Plot from 'react-plotly.js';
 import { ImuRecord, parseCsvToImuRecords } from './parseCsv';
+import { preprocessImuRecords } from './preprocessImu';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
@@ -33,45 +35,73 @@ async function fetchImuData(
   const start = dayjs(startTime, 'YYYY-MM-DD HH:mm:ss');
   const end = dayjs(endTime, 'YYYY-MM-DD HH:mm:ss');
 
-  return source.filter((item) => {
-    if (item.device_id !== deviceId) return false;
-    // 存储的 ts 视为 UTC，这里统一转换为东八区本地时间再做比较
-    const tLocal = dayjs(item.ts).add(8, 'hour');
-    return tLocal.isAfter(start) || tLocal.isSame(start)
-      ? tLocal.isBefore(end) || tLocal.isSame(end)
-      : false;
+  const filtered = source.filter((item) => {
+    const t = dayjs(item.ts);
+    if (!t.isValid()) return false;
+    // 若 CSV 中没有 device_id 列或 device_id 为空，视为单设备文件，不按设备过滤
+    if (deviceId && item.device_id && item.device_id !== deviceId) return false;
+    return (
+      (t.isAfter(start) || t.isSame(start)) &&
+      (t.isBefore(end) || t.isSame(end))
+    );
   });
+
+  return filtered;
 }
 
 const ImuDashboard: React.FC = () => {
   const [deviceId, setDeviceId] = useState<string>('');
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<ImuRecord[]>([]);
-  /** 用户上传的 OSS 数据（CSV 解析结果），所有展示数据均来自此处 */
-  const [uploadedData, setUploadedData] = useState<ImuRecord[] | null>(null);
+  const [enablePreprocess, setEnablePreprocess] = useState<boolean>(true);
+  const [data1, setData1] = useState<ImuRecord[]>([]);
+  const [data2, setData2] = useState<ImuRecord[]>([]);
+  /** 文件1上传的 OSS 数据（CSV 解析结果，作为基准） */
+  const [uploadedData1, setUploadedData1] = useState<ImuRecord[] | null>(null);
+  /** 文件2上传的数据（可选，用于对比） */
+  const [uploadedData2, setUploadedData2] = useState<ImuRecord[] | null>(null);
 
-  const dataSource = uploadedData ?? [];
+  const dataSource1 = uploadedData1 ?? [];
+  const dataSource2 = uploadedData2 ?? [];
+  const hasAnySource = dataSource1.length > 0 || dataSource2.length > 0;
+
+  const allSource = useMemo(
+    () => [...dataSource1, ...dataSource2],
+    [dataSource1, dataSource2],
+  );
 
   const deviceOptions = useMemo(() => {
-    const ids = Array.from(new Set(dataSource.map((r) => r.device_id))).filter(
+    const ids = Array.from(new Set(allSource.map((r) => r.device_id))).filter(
       Boolean,
     );
-    if (ids.length === 0) return [{ label: '请先上传 CSV', value: '' }];
+    if (!allSource.length)
+      return [{ label: '请先上传 CSV（可上传最多两个文件）', value: '' }];
+    if (ids.length === 0)
+      return [{ label: '单设备文件（无 device_id 列）', value: '' }];
     return ids.map((id) => ({ label: id, value: id }));
-  }, [dataSource]);
+  }, [allSource]);
 
   const loadData = async () => {
-    if (!deviceId || !dateRange) return;
+    if (!dateRange) return;
+    if (!hasAnySource) return;
     setLoading(true);
     try {
       const [start, end] = dateRange;
-      const res = await fetchImuData(dataSource, {
+      const params = {
         deviceId,
         startTime: start.format('YYYY-MM-DD HH:mm:ss'),
         endTime: end.format('YYYY-MM-DD HH:mm:ss'),
-      });
-      setData(res || []);
+      };
+      const [res1, res2] = await Promise.all([
+        dataSource1.length
+          ? fetchImuData(dataSource1, params)
+          : Promise.resolve([]),
+        dataSource2.length
+          ? fetchImuData(dataSource2, params)
+          : Promise.resolve([]),
+      ]);
+      setData1(res1 || []);
+      setData2(res2 || []);
     } finally {
       setLoading(false);
     }
@@ -80,7 +110,7 @@ const ImuDashboard: React.FC = () => {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceId, dateRange, uploadedData]);
+  }, [deviceId, dateRange, uploadedData1, uploadedData2]);
 
   const columns = [
     {
@@ -88,8 +118,9 @@ const ImuDashboard: React.FC = () => {
       dataIndex: 'ts',
       key: 'ts',
       render: (value: string) =>
-        // 展示为东八区时间
-        dayjs(value).add(8, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+        dayjs(value).isValid()
+          ? dayjs(value).format('YYYY-MM-DD HH:mm:ss')
+          : value,
     },
     {
       title: '设备ID',
@@ -128,8 +159,18 @@ const ImuDashboard: React.FC = () => {
     },
   ];
 
-  // 按秒聚合：同一秒内多条数据取平均值，X 轴为 HH:mm:ss
-  const aggregatedBySecond = useMemo(() => {
+  // 预处理：消除安装角度带来的重力偏移（数据量不足窗口大小时不处理）
+  const displayData1 = useMemo(
+    () => (enablePreprocess ? preprocessImuRecords(data1) : data1),
+    [data1, enablePreprocess],
+  );
+  const displayData2 = useMemo(
+    () => (enablePreprocess ? preprocessImuRecords(data2) : data2),
+    [data2, enablePreprocess],
+  );
+
+  // 按时间聚合（保留毫秒）：同一时刻多条数据取平均值，X 轴为 HH:mm:ss.SSS
+  const aggregatedBySecond1 = useMemo(() => {
     const bucket: Record<
       string,
       {
@@ -143,10 +184,10 @@ const ImuDashboard: React.FC = () => {
       }
     > = {};
 
-    data.forEach((item) => {
-      // 先转换为东八区本地时间，再按秒聚合
-      const local = dayjs(item.ts).add(8, 'hour');
-      const key = local.format('HH:mm:ss');
+    displayData1.forEach((item) => {
+      const t = dayjs(item.ts);
+      if (!t.isValid()) return;
+      const key = t.format('HH:mm:ss.SSS');
       if (!bucket[key]) {
         bucket[key] = {
           acc_x: 0,
@@ -179,7 +220,59 @@ const ImuDashboard: React.FC = () => {
         gyro_y: b.gyro_y / b.count,
         gyro_z: b.gyro_z / b.count,
       }));
-  }, [data]);
+  }, [displayData1]);
+
+  const aggregatedBySecond2 = useMemo(() => {
+    const bucket: Record<
+      string,
+      {
+        acc_x: number;
+        acc_y: number;
+        acc_z: number;
+        gyro_x: number;
+        gyro_y: number;
+        gyro_z: number;
+        count: number;
+      }
+    > = {};
+
+    displayData2.forEach((item) => {
+      const t = dayjs(item.ts);
+      if (!t.isValid()) return;
+      const key = t.format('HH:mm:ss.SSS');
+      if (!bucket[key]) {
+        bucket[key] = {
+          acc_x: 0,
+          acc_y: 0,
+          acc_z: 0,
+          gyro_x: 0,
+          gyro_y: 0,
+          gyro_z: 0,
+          count: 0,
+        };
+      }
+      const b = bucket[key];
+      b.acc_x += item.acc_x;
+      b.acc_y += item.acc_y;
+      b.acc_z += item.acc_z;
+      b.gyro_x += item.gyro_x;
+      b.gyro_y += item.gyro_y;
+      b.gyro_z += item.gyro_z;
+      b.count += 1;
+    });
+
+    return Object.entries(bucket)
+      .sort(([t1], [t2]) => (t1 < t2 ? -1 : t1 > t2 ? 1 : 0))
+      .map(([time, b]) => ({
+        time,
+        acc_x: b.acc_x / b.count,
+        acc_y: b.acc_y / b.count,
+        acc_z: b.acc_z / b.count,
+        gyro_x: b.gyro_x / b.count,
+        gyro_y: b.gyro_y / b.count,
+        gyro_z: b.gyro_z / b.count,
+      }));
+  }, [displayData2]);
 
   return (
     <PageContainer
@@ -192,9 +285,10 @@ const ImuDashboard: React.FC = () => {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text type="secondary">
               请上传从 OSS 下载的 IMU CSV
-              文件，页面将本地读取并展示，无需走接口。
+              文件，页面将本地读取并展示，无需走接口。支持同时上传两份文件，对比波峰波谷差异。
             </Text>
-            {uploadedData === null ? (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text strong>文件1（基准）</Text>
               <Dragger
                 accept=".csv"
                 showUploadList={false}
@@ -204,14 +298,18 @@ const ImuDashboard: React.FC = () => {
                     const text = (e.target?.result as string) ?? '';
                     try {
                       const records = parseCsvToImuRecords(text);
-                      setUploadedData(records);
+                      setUploadedData1(records);
+                      setUploadedData2((prev) => prev); // 保持文件2不变
                       if (records.length > 0) {
                         const firstId = records[0].device_id;
-                        setDeviceId((prev) =>
-                          records.some((r) => r.device_id === prev)
-                            ? prev
-                            : firstId,
-                        );
+                        // 若 CSV 中不存在 device_id 列，则保持 deviceId 为空，视为单设备文件
+                        if (records.some((r) => r.device_id)) {
+                          setDeviceId((prev) =>
+                            records.some((r) => r.device_id === prev)
+                              ? prev
+                              : firstId,
+                          );
+                        }
                         const times = records.map((r) => dayjs(r.ts));
                         const minT = times.reduce((a, b) =>
                           a.isBefore(b) ? a : b,
@@ -219,10 +317,14 @@ const ImuDashboard: React.FC = () => {
                         const maxT = times.reduce((a, b) =>
                           a.isAfter(b) ? a : b,
                         );
-                        setDateRange([
-                          minT.add(8, 'hour').startOf('day'),
-                          maxT.add(8, 'hour').endOf('day'),
-                        ]);
+
+                        const start = records.some((r) => r.device_id)
+                          ? minT.add(8, 'hour').startOf('day')
+                          : minT.startOf('day');
+                        const end = records.some((r) => r.device_id)
+                          ? maxT.add(8, 'hour').endOf('day')
+                          : maxT.endOf('day');
+                        setDateRange([start, end]);
                       }
                     } catch (err) {
                       console.error('CSV 解析失败', err);
@@ -235,20 +337,96 @@ const ImuDashboard: React.FC = () => {
                 <p className="ant-upload-drag-icon">
                   <InboxOutlined />
                 </p>
-                <p className="ant-upload-text">点击或拖拽 CSV 文件到此处</p>
+                <p className="ant-upload-text">
+                  点击或拖拽 CSV 文件到此处（文件1）
+                </p>
                 <p className="ant-upload-hint">
-                  仅支持从 OSS 导出的 IMU CSV（表头含 ts, device_id, acc_*,
-                  gyro_*）
+                  作为基准数据源，支持从 OSS 导出的 IMU CSV（表头含 ts,
+                  device_id, acc_*, gyro_*）
                 </p>
               </Dragger>
-            ) : (
-              <Space>
-                <Text>
-                  当前使用上传文件（{uploadedData.length.toLocaleString()} 条）
-                </Text>
-                <a onClick={() => setUploadedData(null)}>清除上传</a>
-              </Space>
-            )}
+              {uploadedData1 && (
+                <Space>
+                  <Text>文件1：{uploadedData1.length.toLocaleString()} 条</Text>
+                  <a
+                    onClick={() => {
+                      setUploadedData1(null);
+                      setData1([]);
+                    }}
+                  >
+                    清除文件1
+                  </a>
+                </Space>
+              )}
+
+              <Text strong>文件2（对比，可选）</Text>
+              <Dragger
+                accept=".csv"
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    const text = (e.target?.result as string) ?? '';
+                    try {
+                      const records = parseCsvToImuRecords(text);
+                      setUploadedData2(records);
+                      if (!uploadedData1 && records.length > 0) {
+                        const firstId = records[0].device_id;
+                        if (records.some((r) => r.device_id)) {
+                          setDeviceId((prev) =>
+                            records.some((r) => r.device_id === prev)
+                              ? prev
+                              : firstId,
+                          );
+                        }
+                        const times = records.map((r) => dayjs(r.ts));
+                        const minT = times.reduce((a, b) =>
+                          a.isBefore(b) ? a : b,
+                        );
+                        const maxT = times.reduce((a, b) =>
+                          a.isAfter(b) ? a : b,
+                        );
+
+                        const start = records.some((r) => r.device_id)
+                          ? minT.add(8, 'hour').startOf('day')
+                          : minT.startOf('day');
+                        const end = records.some((r) => r.device_id)
+                          ? maxT.add(8, 'hour').endOf('day')
+                          : maxT.endOf('day');
+                        setDateRange([start, end]);
+                      }
+                    } catch (err) {
+                      console.error('CSV 解析失败', err);
+                    }
+                  };
+                  reader.readAsText(file, 'UTF-8');
+                  return false; // 阻止自动上传
+                }}
+              >
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">
+                  点击或拖拽 CSV 文件到此处（文件2，可选）
+                </p>
+                <p className="ant-upload-hint">
+                  可上传另一份 IMU CSV，用于与文件1对比波形差异
+                </p>
+              </Dragger>
+              {uploadedData2 && (
+                <Space>
+                  <Text>文件2：{uploadedData2.length.toLocaleString()} 条</Text>
+                  <a
+                    onClick={() => {
+                      setUploadedData2(null);
+                      setData2([]);
+                    }}
+                  >
+                    清除文件2
+                  </a>
+                </Space>
+              )}
+            </Space>
           </Space>
         </Card>
 
@@ -269,6 +447,16 @@ const ImuDashboard: React.FC = () => {
               format="YYYY-MM-DD HH:mm:ss"
             />
             <a onClick={loadData}>查询</a>
+            <Text strong>预处理：</Text>
+            <Switch
+              checked={enablePreprocess}
+              onChange={setEnablePreprocess}
+              checkedChildren="开启"
+              unCheckedChildren="关闭"
+            />
+            <Text type="secondary">
+              （开启时对两份数据都做安装角度纠正与重力归一化）
+            </Text>
           </Space>
         </Card>
 
@@ -280,33 +468,61 @@ const ImuDashboard: React.FC = () => {
                 <Plot
                   data={[
                     {
-                      x: aggregatedBySecond.map((d) => d.time),
-                      y: aggregatedBySecond.map((d) => d.acc_x),
+                      x: aggregatedBySecond1.map((d) => d.time),
+                      y: aggregatedBySecond1.map((d) => d.acc_x),
                       type: 'scatter',
                       mode: 'lines',
-                      name: 'acc_x',
+                      name: 'acc_x（文件1）',
                     },
                     {
-                      x: aggregatedBySecond.map((d) => d.time),
-                      y: aggregatedBySecond.map((d) => d.acc_y),
+                      x: aggregatedBySecond1.map((d) => d.time),
+                      y: aggregatedBySecond1.map((d) => d.acc_y),
                       type: 'scatter',
                       mode: 'lines',
-                      name: 'acc_y',
+                      name: 'acc_y（文件1）',
                     },
                     {
-                      x: aggregatedBySecond.map((d) => d.time),
-                      y: aggregatedBySecond.map((d) => d.acc_z),
+                      x: aggregatedBySecond1.map((d) => d.time),
+                      y: aggregatedBySecond1.map((d) => d.acc_z),
                       type: 'scatter',
                       mode: 'lines',
-                      name: 'acc_z',
+                      name: 'acc_z（文件1）',
                     },
+                    ...(aggregatedBySecond2.length
+                      ? [
+                          {
+                            x: aggregatedBySecond2.map((d) => d.time),
+                            y: aggregatedBySecond2.map((d) => d.acc_x),
+                            type: 'scatter' as const,
+                            mode: 'lines' as const,
+                            name: 'acc_x（文件2）',
+                            line: { dash: 'dash' as const },
+                          },
+                          {
+                            x: aggregatedBySecond2.map((d) => d.time),
+                            y: aggregatedBySecond2.map((d) => d.acc_y),
+                            type: 'scatter' as const,
+                            mode: 'lines' as const,
+                            name: 'acc_y（文件2）',
+                            line: { dash: 'dash' as const },
+                          },
+                          {
+                            x: aggregatedBySecond2.map((d) => d.time),
+                            y: aggregatedBySecond2.map((d) => d.acc_z),
+                            type: 'scatter' as const,
+                            mode: 'lines' as const,
+                            name: 'acc_z（文件2）',
+                            line: { dash: 'dash' as const },
+                          },
+                        ]
+                      : []),
                   ]}
                   layout={{
                     autosize: true,
                     height: 320,
                     margin: { l: 50, r: 10, t: 20, b: 40 },
                     xaxis: {
-                      title: { text: '时间（秒）' },
+                      title: { text: '时间（时:分:秒.毫秒）' },
                       showgrid: false,
                     },
                     yaxis: {
@@ -329,33 +545,61 @@ const ImuDashboard: React.FC = () => {
                 <Plot
                   data={[
                     {
-                      x: aggregatedBySecond.map((d) => d.time),
-                      y: aggregatedBySecond.map((d) => d.gyro_x),
+                      x: aggregatedBySecond1.map((d) => d.time),
+                      y: aggregatedBySecond1.map((d) => d.gyro_x),
                       type: 'scatter',
                       mode: 'lines',
-                      name: 'gyro_x',
+                      name: 'gyro_x（文件1）',
                     },
                     {
-                      x: aggregatedBySecond.map((d) => d.time),
-                      y: aggregatedBySecond.map((d) => d.gyro_y),
+                      x: aggregatedBySecond1.map((d) => d.time),
+                      y: aggregatedBySecond1.map((d) => d.gyro_y),
                       type: 'scatter',
                       mode: 'lines',
-                      name: 'gyro_y',
+                      name: 'gyro_y（文件1）',
                     },
                     {
-                      x: aggregatedBySecond.map((d) => d.time),
-                      y: aggregatedBySecond.map((d) => d.gyro_z),
+                      x: aggregatedBySecond1.map((d) => d.time),
+                      y: aggregatedBySecond1.map((d) => d.gyro_z),
                       type: 'scatter',
                       mode: 'lines',
-                      name: 'gyro_z',
+                      name: 'gyro_z（文件1）',
                     },
+                    ...(aggregatedBySecond2.length
+                      ? [
+                          {
+                            x: aggregatedBySecond2.map((d) => d.time),
+                            y: aggregatedBySecond2.map((d) => d.gyro_x),
+                            type: 'scatter' as const,
+                            mode: 'lines' as const,
+                            name: 'gyro_x（文件2）',
+                            line: { dash: 'dash' as const },
+                          },
+                          {
+                            x: aggregatedBySecond2.map((d) => d.time),
+                            y: aggregatedBySecond2.map((d) => d.gyro_y),
+                            type: 'scatter' as const,
+                            mode: 'lines' as const,
+                            name: 'gyro_y（文件2）',
+                            line: { dash: 'dash' as const },
+                          },
+                          {
+                            x: aggregatedBySecond2.map((d) => d.time),
+                            y: aggregatedBySecond2.map((d) => d.gyro_z),
+                            type: 'scatter' as const,
+                            mode: 'lines' as const,
+                            name: 'gyro_z（文件2）',
+                            line: { dash: 'dash' as const },
+                          },
+                        ]
+                      : []),
                   ]}
                   layout={{
                     autosize: true,
                     height: 320,
                     margin: { l: 50, r: 10, t: 20, b: 40 },
                     xaxis: {
-                      title: { text: '时间（秒）' },
+                      title: { text: '时间（时:分:秒.毫秒）' },
                       showgrid: false,
                     },
                     yaxis: {
@@ -377,7 +621,7 @@ const ImuDashboard: React.FC = () => {
                 <Title level={5}>原始数据明细</Title>
                 <Table<ImuRecord>
                   rowKey={(record) => `${record.ts}-${record.device_id}`}
-                  dataSource={data}
+                  dataSource={displayData1}
                   columns={columns}
                   size="small"
                   scroll={{ x: 'max-content', y: 400 }}
