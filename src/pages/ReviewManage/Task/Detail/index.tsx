@@ -6,6 +6,13 @@ import { Navigate, useAccess, useParams, useSearchParams } from '@umijs/max';
 import { Card, Descriptions, Result, Spin } from 'antd';
 import React from 'react';
 import ReactPlayer from 'react-player';
+import MpegTsVideoPlayer from '../../Components/MpegTsVideoPlayer';
+
+/** react-player 的 File 模式不识别 .ts；裸 TS 需 mpegts.js（MSE）播放 */
+const isMpegTsSource = (videoUrl: string, videoPath?: string) => {
+  const check = (s: string) => /\.ts($|\?|#)/i.test(s);
+  return check(videoUrl) || (!!videoPath && check(videoPath));
+};
 
 const TaskDetail: React.FC = () => {
   const { clueId } = useParams<{ clueId: string }>();
@@ -45,11 +52,15 @@ const TaskDetail: React.FC = () => {
         <Card>
           {detail?.video_url && (
             <Card title="视频内容" style={{ marginBottom: 24 }}>
-              <ReactPlayer
-                url={detail.video_url}
-                controls
-                playbackRate={isHighTask ? 1.25 : 2}
-              />
+              {isMpegTsSource(detail.video_url, detail.video_path) ? (
+                <MpegTsVideoPlayer url={detail.video_url} />
+              ) : (
+                <ReactPlayer
+                  url={detail.video_url}
+                  controls
+                  playbackRate={isHighTask ? 1.25 : 2}
+                />
+              )}
               <Descriptions style={{ marginTop: 8 }} column={2}>
                 <Descriptions.Item label="触发时间点">
                   {parseVideoTime(detail?.video_path)}

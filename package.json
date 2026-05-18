@@ -27,6 +27,7 @@
     "dayjs": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "lodash": "^4.17.21",
+    "mpegts.js": "^1.8.0",
     "plotly.js-basic-dist": "^3.4.0",
     "react-player": "^2.16.0",
     "react-plotly.js": "^2.6.0",

@@ -5,11 +5,18 @@ import { AuditTaskDetail } from '@/services/audit/typings';
 import { parseVideoTime } from '@/utils/format';
 import { PageContainer } from '@ant-design/pro-components';
 import { Navigate, useAccess } from '@umijs/max';
-import { Button, Card, Result, Spin } from 'antd';
+import { Button, Card, Popconfirm, Result, Spin } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import ReactPlayer from 'react-player';
 import AuditForm from '../Components/AuditForm';
+import MpegTsVideoPlayer from '../Components/MpegTsVideoPlayer';
 import styles from './index.scss';
+
+/** react-player 的 File 模式不识别 .ts；裸 TS 需 mpegts.js（MSE）播放 */
+const isMpegTsSource = (videoUrl: string, videoPath?: string) => {
+  const check = (s: string) => /\.ts($|\?|#)/i.test(s);
+  return check(videoUrl) || (!!videoPath && check(videoPath));
+};
 
 const AuditPage: React.FC = () => {
   const { isLogin, auditVideo } = useAccess();
@@ -37,6 +44,12 @@ const AuditPage: React.FC = () => {
       setAuditTaskDetail(data);
     },
   });
+  const { run: addBlackDevice, loading: addBlackLoading } = useRequest(
+    AuditAPI.addBlackDevice,
+    {
+      successMsg: '设备拉黑成功',
+    },
+  );
 
   useEffect(() => {
     // 创建音频元素
@@ -94,6 +107,11 @@ const AuditPage: React.FC = () => {
     }
   };
 
+  const handleQuickBlack = async () => {
+    if (!auditTaskDetail?.device_id) return;
+    await addBlackDevice({ device_id: auditTaskDetail.device_id });
+  };
+
   return (
     <PageContainer
       header={{
@@ -132,11 +150,21 @@ const AuditPage: React.FC = () => {
       {auditTaskDetail ? (
         <div className={styles.container}>
           <Card title="视频内容" style={{ marginBottom: 24 }}>
-            <ReactPlayer
-              className={styles.player}
-              url={auditTaskDetail?.video_url}
-              controls
-            />
+            {isMpegTsSource(
+              auditTaskDetail.video_url,
+              auditTaskDetail.video_path,
+            ) ? (
+              <MpegTsVideoPlayer
+                url={auditTaskDetail.video_url}
+                className={styles.player}
+              />
+            ) : (
+              <ReactPlayer
+                className={styles.player}
+                url={auditTaskDetail.video_url}
+                controls
+              />
+            )}
             <div style={{ marginTop: 12 }}>
               触发时间点：{parseVideoTime(auditTaskDetail?.video_path)}
             </div>
@@ -144,6 +172,25 @@ const AuditPage: React.FC = () => {
               审核任务评分：
               {auditTaskDetail?.machine_audit_result?.overall_score / 100}分(0 ~
               100分)
+            </div>
+            <div>设备SN：{auditTaskDetail?.sn || '-'}</div>
+            <div style={{ marginTop: 12 }}>
+              <Popconfirm
+                title="确认拉黑该设备吗？"
+                description="拉黑后该设备将进入黑名单。"
+                okText="确认"
+                cancelText="取消"
+                onConfirm={handleQuickBlack}
+                disabled={!auditTaskDetail?.device_id}
+              >
+                <Button
+                  danger
+                  loading={addBlackLoading}
+                  disabled={!auditTaskDetail?.device_id}
+                >
+                  快速拉黑
+                </Button>
+              </Popconfirm>
             </div>
           </Card>
           <AuditForm detail={auditTaskDetail} onFinished={onFinish} />

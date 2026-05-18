@@ -39,6 +39,8 @@ export interface OutboundRecordParams extends PageInfoParams {
   start_time?: string;
   end_time?: string;
   status?: INBOUND_STATUS;
+  store_id?: string;
+  company_id?: string;
 }
 
 export enum INBOUND_STATUS {

@@ -241,6 +241,12 @@ export default defineConfig({
           component: './EquipmentManage/DeviceVersion',
           access: 'equipmentManage',
         },
+        {
+          path: '/equipment/entry-collision',
+          name: '碰撞线索查询',
+          component: './EquipmentManage/EntryCollisionReport',
+          access: 'equipmentManage',
+        },
       ],
     },
     {
@@ -311,6 +317,12 @@ export default defineConfig({
           access: 'outboundList',
         },
         {
+          name: '开票对账单',
+          path: '/warehouse/outbound/invoice',
+          component: './WarehouseManage/OutboundInvoice',
+          access: 'outboundList',
+        },
+        {
           name: '退货登记',
           path: '/warehouse/return/list',
           component: './WarehouseManage/ReturnDevice',
@@ -356,8 +368,8 @@ export default defineConfig({
     '/api': {
       // 标识需要进行转换的请求的url
       // target: 'https://test.ai-kaka.com:443',
-      target: 'https://eda.ai-kaka.com:443',
-      // target: 'http://192.168.8.232:8888',
+      // target: 'https://eda.ai-kaka.com:443',
+      target: 'http://192.168.102.125:8888',
       changeOrigin: true, // 允许域名进行转换
     },
   },
