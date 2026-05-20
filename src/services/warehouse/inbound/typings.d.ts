@@ -64,7 +64,21 @@ export interface InboundCreateStageRequest {
   icc_id: string;
   scan_date?: string;
   sn: string;
+  // SG30-EDA 非云卡
+  // SG30K-EDA 云卡
+  model: string;
 }
+
+/** SG30-EDA 非云卡；SG30K-EDA 云卡 */
+export const INBOUND_DEVICE_MODEL = {
+  NON_CLOUD: 'SG30-EDA',
+  CLOUD: 'SG30K-EDA',
+} as const;
+
+export const INBOUND_DEVICE_MODEL_OPTIONS = [
+  { label: 'SG30-EDA（非云卡）', value: INBOUND_DEVICE_MODEL.NON_CLOUD },
+  { label: 'SG30K-EDA（云卡）', value: INBOUND_DEVICE_MODEL.CLOUD },
+];
 
 export interface TableItem {
   key: string;
@@ -73,6 +87,7 @@ export interface TableItem {
   iccid: string;
   scan_date?: string;
   device_model?: string;
+  model?: string;
   customer?: string;
   isChecked: boolean;
   isDuplicate?: boolean;

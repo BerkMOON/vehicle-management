@@ -39,6 +39,11 @@ export const getColumns = () => {
       key: 'device_type',
     },
     {
+      title: '设备型号',
+      dataIndex: 'model',
+      key: 'model',
+    },
+    {
       title: 'SN码',
       dataIndex: 'sn',
       key: 'sn',

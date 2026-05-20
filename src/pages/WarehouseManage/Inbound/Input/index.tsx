@@ -1,8 +1,9 @@
+import { INBOUND_DEVICE_MODEL_OPTIONS } from '@/services/warehouse/inbound/typings.d';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams } from '@umijs/max';
-import { Button, Card, Descriptions, Input, Space, Table } from 'antd';
-import React, { useEffect } from 'react';
+import { Button, Card, Descriptions, Input, Select, Space, Table } from 'antd';
+import React, { useEffect, useMemo } from 'react';
 import { BatchInfo } from './components/BatchInfo';
 import { useInboundInput } from './hooks/useInboundInput';
 
@@ -22,10 +23,12 @@ const ProductInput: React.FC = () => {
     clearing,
     tableLoading,
     scanValue,
+    deviceModel,
     exportUrl,
     columns,
     handleClear,
     setScanValue,
+    setDeviceModel,
     handleScan,
     handleExport,
     handleSubmit,
@@ -41,6 +44,25 @@ const ProductInput: React.FC = () => {
     }));
 
   const recordedData = tableData.filter((item) => item.isChecked);
+
+  const recordedColumns = useMemo(() => {
+    const statusIndex = columns.findIndex((col) => col.key === 'isChecked');
+    const modelColumn = {
+      title: '设备型号',
+      dataIndex: 'model',
+      key: 'model',
+      width: 150,
+      render: (text: string) => text || '-',
+    };
+    if (statusIndex === -1) {
+      return [...columns, modelColumn];
+    }
+    return [
+      ...columns.slice(0, statusIndex),
+      modelColumn,
+      ...columns.slice(statusIndex),
+    ];
+  }, [columns]);
 
   useEffect(() => {
     // 获取入库记录详情
@@ -88,22 +110,31 @@ const ProductInput: React.FC = () => {
         </Descriptions>
       </Card>
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Input.TextArea
-          value={scanValue}
-          onChange={(e) => setScanValue(e.target.value)}
-          disabled={duplicateSNs.length > 0}
-          onPressEnter={(e) => {
-            e.preventDefault();
-            handleScan(scanValue);
-          }}
-          placeholder={
-            duplicateSNs.length > 0
-              ? '有重复SN码，请检查上传的Excel表格'
-              : '请将扫描枪对准商品条码进行扫描，扫描后会自动确认对应商品'
-          }
-          autoFocus
-          style={{ width: '300px' }}
-        />
+        <Space align="start">
+          <Select
+            value={deviceModel}
+            onChange={setDeviceModel}
+            options={INBOUND_DEVICE_MODEL_OPTIONS}
+            disabled={duplicateSNs.length > 0}
+            style={{ width: 200 }}
+          />
+          <Input.TextArea
+            value={scanValue}
+            onChange={(e) => setScanValue(e.target.value)}
+            disabled={duplicateSNs.length > 0}
+            onPressEnter={(e) => {
+              e.preventDefault();
+              handleScan(scanValue);
+            }}
+            placeholder={
+              duplicateSNs.length > 0
+                ? '有重复SN码，请检查上传的Excel表格'
+                : '请将扫描枪对准商品条码进行扫描，扫描后会自动确认对应商品'
+            }
+            autoFocus
+            style={{ width: '300px' }}
+          />
+        </Space>
 
         <div>
           <Button type="primary" onClick={handleExport} loading={exporting}>
@@ -195,7 +226,7 @@ const ProductInput: React.FC = () => {
           >
             <Table
               loading={tableLoading}
-              columns={columns}
+              columns={recordedColumns}
               dataSource={searchRecord ? searchRecordData : recordedData}
               size="small"
               pagination={{

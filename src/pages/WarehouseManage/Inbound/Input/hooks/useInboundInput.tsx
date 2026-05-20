@@ -1,10 +1,11 @@
 import audioUrl from '@/assets/audio/tips.mp3';
 import { SuccessCode } from '@/constants';
 import { InboundAPI } from '@/services/warehouse/inbound/InboundController';
-import type {
-  InboundRecordItem,
-  TableItem,
-} from '@/services/warehouse/inbound/typings';
+import {
+  INBOUND_DEVICE_MODEL,
+  type InboundRecordItem,
+  type TableItem,
+} from '@/services/warehouse/inbound/typings.d';
 import { OssAPI } from '@/services/warehouse/oss/OSSController';
 import { OssSence } from '@/services/warehouse/oss/typings.d';
 import { fetchAllPaginatedData } from '@/utils/request';
@@ -24,6 +25,9 @@ export const useInboundInput = () => {
   const [exporting, setExporting] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [scanValue, setScanValue] = useState('');
+  const [deviceModel, setDeviceModel] = useState<string>(
+    INBOUND_DEVICE_MODEL.NON_CLOUD,
+  );
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [tableLoading, setTableLoading] = useState(false);
 
@@ -68,6 +72,7 @@ export const useInboundInput = () => {
         device_id: stageRecord.imei,
         device_model: stageRecord.device_model,
         scan_date: stageRecord.scan_date,
+        model: deviceModel,
       });
       if (res.response_status.code !== SuccessCode.SUCCESS) {
         message.error(res.response_status.msg);
@@ -86,7 +91,9 @@ export const useInboundInput = () => {
     if (success) {
       setTableData((prevData) =>
         prevData.map((item) =>
-          item.key === record.key ? { ...item, isChecked: true } : item,
+          item.key === record.key
+            ? { ...item, isChecked: true, model: deviceModel }
+            : item,
         ),
       );
     }
@@ -101,6 +108,7 @@ export const useInboundInput = () => {
       ICCID号: item.iccid,
       扫码日期: item.scan_date,
       设备型号: item.device_model,
+      产品型号: item.model ?? deviceModel,
       所属客户: item.customer,
       是否已录入: item.isChecked ? '是' : '否',
     }));
@@ -328,9 +336,11 @@ export const useInboundInput = () => {
     exporting,
     clearing,
     scanValue,
+    deviceModel,
     exportUrl,
     tableLoading,
     setScanValue,
+    setDeviceModel,
     handleCheck,
     handleScan,
     handleExport,
