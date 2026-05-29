@@ -5,9 +5,12 @@ import type {
   EntryCollisionReportDetailParams,
   EntryCollisionReportListParams,
   EntryCollisionReportListResponse,
+  EntryInspectionLogListParams,
+  EntryInspectionLogListResponse,
 } from './typings';
 
-const API_PREFIX = '/api/admin/device/entry-collision-report';
+const COLLISION_API_PREFIX = '/api/admin/device/entry-collision-report';
+const INSPECTION_LOG_API_PREFIX = '/api/admin/device/entry-inspection-log';
 
 /** 后台 - 入场检测碰撞线索查询 */
 export const EntryCheckAPI = {
@@ -17,7 +20,7 @@ export const EntryCheckAPI = {
    */
   listCollisionReports: (params: EntryCollisionReportListParams) =>
     request<ResponseInfoType<EntryCollisionReportListResponse>>(
-      `${API_PREFIX}/list`,
+      `${COLLISION_API_PREFIX}/list`,
       {
         method: 'GET',
         params,
@@ -29,7 +32,20 @@ export const EntryCheckAPI = {
    */
   getCollisionReportDetail: (params: EntryCollisionReportDetailParams) =>
     request<ResponseInfoType<EntryCollisionReportDetail>>(
-      `${API_PREFIX}/detail`,
+      `${COLLISION_API_PREFIX}/detail`,
+      {
+        method: 'GET',
+        params,
+      },
+    ),
+
+  /**
+   * GET /api/admin/device/entry-inspection-log/list
+   * 查询维度：company_id、store_id、vin、record_date（或 date）
+   */
+  listInspectionLogs: (params: EntryInspectionLogListParams) =>
+    request<ResponseInfoType<EntryInspectionLogListResponse>>(
+      `${INSPECTION_LOG_API_PREFIX}/list`,
       {
         method: 'GET',
         params,
