@@ -11,6 +11,7 @@ import type { UserInfo } from '@/services/user/typings';
 import { Navigate, useAccess } from '@umijs/max';
 import { Form, Result } from 'antd';
 import React, { useRef } from 'react';
+import BulkImportModal from './BulkImportModal';
 import { getColumns } from './colums';
 import { BusinessUserForm, UpdateRoleForm } from './opreatorForm';
 import { searchForm } from './searchForm';
@@ -87,6 +88,9 @@ const TableList: React.FC = () => {
           text: '新建门店用户',
           onClick: () => handleModalOpen(createOrModifyModal),
         }}
+        extraButtons={
+          <BulkImportModal onFinished={() => baseListRef.current?.getData()} />
+        }
       />
       <DeleteForm
         modalVisible={deleteModal.visible}
