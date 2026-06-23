@@ -147,7 +147,6 @@ export function calculateStoreMetrics(params: {
 
   const newCarVins = uniqueVins(newCarRows.map((row) => row.vin));
   const newCarSales = newCarVins.length;
-  const newCarVinSet = new Set(newCarVins);
   const entryVinSet = new Set(uniqueVins(entryRows.map((row) => row.vin)));
   const entryTotal = entryVinSet.size;
 
@@ -192,16 +191,8 @@ export function calculateStoreMetrics(params: {
     }
   });
 
-  // 综合渗透率分子：竞赛期内新增绑定 VIN，且落在该店新车 Excel 销量集合内
-  const newBindings = uniqueVins(
-    bindings
-      .filter(
-        (item) =>
-          item.storeId === storeId &&
-          inRange(item.bindDate) &&
-          newCarVinSet.has(item.vin),
-      )
-      .map((item) => item.vin),
+  const newBindings = bindings.filter(
+    (item) => item.storeId === storeId && inRange(item.bindDate),
   ).length;
 
   const entryVinSetForBind = new Set(entryDateMap.keys());

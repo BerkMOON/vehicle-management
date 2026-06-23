@@ -440,7 +440,18 @@ GET /return-status?date=2026-06-17
 
 与 `src/pages/Dashboard/CompetitionDashboard/utils/metrics.ts` **一致**。
 
-统计区间：`start_date` ~ `end_date`（同时作用于 Excel 业务日、绑定日、检测日）。
+统计区间：`start_date` ~ `end_date`（**endDate 整天计入**，见下表）。
+
+#### 日期边界（避免 endDate 只算到零点）
+
+| 数据源 | 字段 | SQL / 逻辑 | endDate 是否含整天 |
+| --- | --- | --- | --- |
+| 新车 / 售后 Excel | `business_date`（DATE） | `>= start_date AND <= end_date` | ✅ |
+| 设备绑定 | `bind_time`（DATETIME） | `>= start 00:00:00 AND < endDate+1 00:00:00` | ✅ |
+| 入厂检测 | `ctime`（DATETIME） | `>= start 00:00:00 AND < endDate+1 00:00:00` | ✅ |
+| 内存二次过滤 | 格式化为 `YYYY-MM-DD` | `date >= start AND date <= end` | ✅ |
+
+与 `device/business/list` 手工对账时，`bind_end_time` 请传 **`endDate 23:59:59`**（该接口为 `<=` 闭区间）；勿传 `endDate 00:00:00`，否则不含 endDate 当天。
 
 ### 7.1 分母（来自两张业务表）
 
@@ -452,11 +463,11 @@ GET /return-status?date=2026-06-17
 
 ### 7.2 分子（已有绑定 / 检测表）
 
-| 字段                 | 计算                                  |
-| -------------------- | ------------------------------------- |
-| `new_bindings`       | 范围内绑定 VIN ∩ 范围内新车 VIN       |
-| `inspected_count`    | 范围内有照片检测 VIN ∩ 范围内售后 VIN |
-| `entry_new_bindings` | 范围内绑定 VIN ∩ 范围内售后 VIN       |
+| 字段 | 计算 |
+| --- | --- |
+| `new_bindings` | 统计期内该门店绑定记录总数（与 `device/business/list` 按 `store_id` + `bind_time` 范围的 `total_count` 一致） |
+| `inspected_count` | 范围内有照片检测 VIN ∩ 范围内售后 VIN |
+| `entry_new_bindings` | 范围内绑定 VIN ∩ 范围内售后 VIN |
 
 ### 7.3 三项率
 
