@@ -7,7 +7,36 @@ import {
   VehicleRow,
 } from '../types';
 import { NormalizeDateContext, normalizeExcelDate } from './date';
-import { cleanVin } from './vin';
+import { cleanVin, isExcelNotInstalled } from './vin';
+
+/** 上传前按 business_date + vin 去重（多 sheet 合并时常见重复） */
+export function dedupeVehicleRows(rows: VehicleRow[]): VehicleRow[] {
+  const order: string[] = [];
+  const merged = new Map<string, VehicleRow>();
+
+  rows.forEach((row) => {
+    const key = `${row.businessDate}|${row.vin}`;
+    const prev = merged.get(key);
+    if (!prev) {
+      order.push(key);
+      merged.set(key, row);
+      return;
+    }
+    const prevInstalled = !isExcelNotInstalled(prev.installedFlag);
+    const nextInstalled = !isExcelNotInstalled(row.installedFlag);
+    merged.set(key, {
+      ...row,
+      installedFlag: nextInstalled
+        ? row.installedFlag
+        : prevInstalled
+        ? prev.installedFlag
+        : row.installedFlag || prev.installedFlag,
+      remark: row.remark || prev.remark,
+    });
+  });
+
+  return order.map((key) => merged.get(key)!);
+}
 
 interface RawExcelRow {
   rowNo: number;
@@ -110,9 +139,22 @@ function parseSheetMatrix(
     });
 }
 
+function sheetHasVinHeader(sheet: XLSX.WorkSheet): boolean {
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: '',
+  });
+  for (let i = 0; i < Math.min(matrix.length, 15); i += 1) {
+    const row = matrix[i];
+    if (!Array.isArray(row)) continue;
+    const cells = row.map(cleanText);
+    if (cells.some((cell) => /车架号|^VIN$/i.test(cell))) return true;
+  }
+  return false;
+}
+
 function readWorkbookRows(
   buffer: ArrayBuffer,
-  tableType: TableType,
   dateContext: NormalizeDateContext,
 ): RawExcelRow[] {
   const workbook = XLSX.read(buffer, {
@@ -122,19 +164,30 @@ function readWorkbookRows(
   });
   const sheetNames = workbook.SheetNames.filter((name) => name !== '说明');
 
-  if (tableType === 'entry_check' && sheetNames.length >= 2) {
-    const detailSheets = sheetNames.filter((name) =>
-      ['保养', '维修', '事故'].some((key) => name.includes(key)),
+  if (sheetNames.length >= 2) {
+    const dataSheetNames = sheetNames.filter((name) =>
+      sheetHasVinHeader(workbook.Sheets[name]),
     );
-    if (detailSheets.length > 0) {
-      return detailSheets.flatMap((name) =>
+    if (dataSheetNames.length > 0) {
+      return dataSheetNames.flatMap((name) =>
         parseSheetMatrix(workbook.Sheets[name], dateContext),
       );
     }
   }
 
   const sheetName = sheetNames[0];
+  if (!sheetName) return [];
   return parseSheetMatrix(workbook.Sheets[sheetName], dateContext);
+}
+
+export interface ParseExcelResult {
+  rows: VehicleRow[];
+  errors: ParseErrorRow[];
+  businessDates: string[];
+  /** 解析通过、合并表内重复前的有效行数 */
+  rawValidCount: number;
+  /** 多 sheet 内同 business_date+vin 合并去掉的行数 */
+  mergedDuplicateCount: number;
 }
 
 export function parseExcelFile(params: {
@@ -145,7 +198,7 @@ export function parseExcelFile(params: {
   uploadRecordId: string;
   reportDate?: string | null;
   competitionConfig?: Pick<CompetitionConfig, 'startDate' | 'endDate'>;
-}): { rows: VehicleRow[]; errors: ParseErrorRow[]; businessDates: string[] } {
+}): ParseExcelResult {
   const {
     buffer,
     fileName,
@@ -156,10 +209,9 @@ export function parseExcelFile(params: {
     competitionConfig,
   } = params;
   const dateContext: NormalizeDateContext = { competitionConfig, reportDate };
-  const rawRows = readWorkbookRows(buffer, tableType, dateContext);
+  const rawRows = readWorkbookRows(buffer, dateContext);
   const rows: VehicleRow[] = [];
   const errors: ParseErrorRow[] = [];
-  const businessDates = new Set<string>();
 
   rawRows.forEach((raw) => {
     const vinResult = cleanVin(raw.vinRaw);
@@ -190,7 +242,6 @@ export function parseExcelFile(params: {
       return;
     }
 
-    businessDates.add(businessDate);
     rows.push({
       id: `${uploadRecordId}-${raw.rowNo}`,
       storeId: store.id,
@@ -207,10 +258,16 @@ export function parseExcelFile(params: {
     });
   });
 
+  const dedupedRows = dedupeVehicleRows(rows);
+
   return {
-    rows,
+    rows: dedupedRows,
     errors,
-    businessDates: Array.from(businessDates),
+    businessDates: Array.from(
+      new Set(dedupedRows.map((row) => row.businessDate)),
+    ),
+    rawValidCount: rows.length,
+    mergedDuplicateCount: rows.length - dedupedRows.length,
   };
 }
 

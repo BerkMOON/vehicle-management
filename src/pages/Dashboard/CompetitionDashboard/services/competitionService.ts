@@ -36,6 +36,7 @@ import {
   fetchBackendStoreLinks,
   invalidateBackendStoreCache,
 } from '../utils/storeIdMap';
+import { prepareRowsForUpload } from '../utils/uploadFilter';
 import { cleanVin } from '../utils/vin';
 import {
   appendParseErrors,
@@ -80,58 +81,6 @@ function enrichParseErrors(
   }));
 }
 
-async function fetchAllRowsForStoreDate(params: {
-  tableType: TableType;
-  backendStoreId: number;
-  businessDate: string;
-}): Promise<CompetitionRowInput[]> {
-  const all: CompetitionRowInput[] = [];
-  let page = 1;
-  let totalPage = 1;
-
-  while (page <= totalPage) {
-    const res =
-      params.tableType === 'new_car'
-        ? await CompetitionDashboardAPI.getNewCarRows({
-            store_id: params.backendStoreId,
-            business_date: params.businessDate,
-            page,
-            limit: 200,
-          })
-        : await CompetitionDashboardAPI.getAfterSalesRows({
-            store_id: params.backendStoreId,
-            business_date: params.businessDate,
-            page,
-            limit: 200,
-          });
-    const data = assertApiSuccess(res, '查询已有行失败');
-    totalPage = data.meta?.total_page || 1;
-    (data.list || []).forEach((item) => {
-      all.push({
-        business_date: item.business_date,
-        vin: item.vin,
-        installed_flag: item.installed_flag,
-        remark: item.remark,
-      });
-    });
-    page += 1;
-  }
-
-  return all;
-}
-
-function mergeRowInputs(
-  existing: CompetitionRowInput[],
-  incoming: CompetitionRowInput,
-): CompetitionRowInput[] {
-  const map = new Map<string, CompetitionRowInput>();
-  existing.forEach((row) => {
-    map.set(`${row.business_date}|${row.vin}`, row);
-  });
-  map.set(`${incoming.business_date}|${incoming.vin}`, incoming);
-  return Array.from(map.values());
-}
-
 function getBackendStoreId(
   links: BackendStoreLink[],
   competitionStoreId: string,
@@ -158,6 +107,7 @@ async function postRowsToBackend(params: {
   backendStoreId: number;
   rows: VehicleRow[];
 }) {
+  if (params.rows.length === 0) return;
   const payload = {
     store_id: params.backendStoreId,
     rows: toApiRows(params.rows),
@@ -418,12 +368,30 @@ export const CompetitionDashboardService = {
           }),
         );
 
-        if (parsed.rows.length > 0) {
+        const prepared = await prepareRowsForUpload({
+          rows: parsed.rows,
+          tableType: draft.tableType,
+          backendStoreId,
+          businessDates: parsed.businessDates,
+        });
+
+        if (prepared.uploadCount > 0) {
           await postRowsToBackend({
             tableType: draft.tableType,
             backendStoreId,
-            rows: parsed.rows,
+            rows: prepared.toUpload,
           });
+        }
+
+        const statusMessages: string[] = [];
+        if (parsed.errors.length > 0) {
+          statusMessages.push(`${parsed.errors.length} 行解析失败`);
+        }
+        if (prepared.skippedExistingCount > 0) {
+          statusMessages.push(`跳过已入库 ${prepared.skippedExistingCount} 行`);
+        }
+        if (prepared.uploadCount === 0 && parsed.rows.length > 0) {
+          statusMessages.push('无新增行需上传');
         }
 
         records.push({
@@ -436,13 +404,17 @@ export const CompetitionDashboardService = {
           fileName: draft.fileName,
           uploadedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
           uploadedBy,
-          rowCount: parsed.rows.length + parsed.errors.length,
-          validRowCount: parsed.rows.length,
-          parseStatus: parsed.errors.length > 0 ? 'partial' : 'success',
-          errorMessage:
+          rowCount: parsed.rawValidCount + parsed.errors.length,
+          validRowCount: prepared.uploadCount,
+          skippedExistingCount: prepared.skippedExistingCount,
+          parseStatus:
             parsed.errors.length > 0
-              ? `${parsed.errors.length} 行解析失败`
-              : undefined,
+              ? 'partial'
+              : prepared.uploadCount > 0 || parsed.rows.length === 0
+              ? 'success'
+              : 'success',
+          errorMessage:
+            statusMessages.length > 0 ? statusMessages.join('；') : undefined,
         });
         successCount += 1;
       } catch (error: any) {
@@ -549,11 +521,18 @@ export const CompetitionDashboardService = {
       competitionConfig: config,
     });
 
-    if (parsed.rows.length > 0) {
+    const prepared = await prepareRowsForUpload({
+      rows: parsed.rows,
+      tableType: params.tableType,
+      backendStoreId,
+      businessDates: parsed.businessDates,
+    });
+
+    if (prepared.uploadCount > 0) {
       await postRowsToBackend({
         tableType: params.tableType,
         backendStoreId,
-        rows: parsed.rows,
+        rows: prepared.toUpload,
       });
     }
 
@@ -567,9 +546,14 @@ export const CompetitionDashboardService = {
       fileName: target.fileName,
       uploadedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       uploadedBy: undefined,
-      rowCount: parsed.rows.length + parsed.errors.length,
-      validRowCount: parsed.rows.length,
+      rowCount: parsed.rawValidCount + parsed.errors.length,
+      validRowCount: prepared.uploadCount,
+      skippedExistingCount: prepared.skippedExistingCount,
       parseStatus: parsed.errors.length > 0 ? 'partial' : 'success',
+      errorMessage:
+        prepared.skippedExistingCount > 0
+          ? `跳过已入库 ${prepared.skippedExistingCount} 行`
+          : undefined,
     };
 
     if (parsed.errors.length > 0) {
@@ -597,7 +581,7 @@ export const CompetitionDashboardService = {
     saveAnomalies(next);
   },
 
-  /** 手动修正解析失败行并合并写入后端（同店同日期已有行会保留） */
+  /** 手动修正解析失败行并追加写入后端 */
   async submitParseErrorFix(input: ParseErrorFixInput): Promise<void> {
     await initCompetitionStorage();
     const config = getConfig();
@@ -618,36 +602,36 @@ export const CompetitionDashboardService = {
       throw new Error(`门店「${store.name}」未匹配到后台 store_id`);
     }
 
-    const newRow: CompetitionRowInput = {
-      business_date: input.businessDate.trim(),
-      vin: vinResult.vin,
-      installed_flag: input.installedFlag?.trim() || undefined,
-      remark: input.remark?.trim() || undefined,
-    };
-
-    const existing = await fetchAllRowsForStoreDate({
+    const prepared = await prepareRowsForUpload({
+      rows: [
+        {
+          id: createId('manual-fix'),
+          storeId: store.id,
+          storeName: store.name,
+          tableType: input.tableType,
+          vin: vinResult.vin,
+          businessDate: input.businessDate.trim(),
+          installedFlag: input.installedFlag?.trim() || undefined,
+          remark: input.remark?.trim() || undefined,
+          uploadRecordId: 'manual-fix',
+          sourceFileName: '',
+          rowNo: 0,
+        },
+      ],
       tableType: input.tableType,
       backendStoreId,
-      businessDate: newRow.business_date,
+      businessDates: [input.businessDate.trim()],
     });
 
-    const merged = mergeRowInputs(existing, newRow);
+    if (prepared.uploadCount === 0) {
+      removeParseError(input.errorId);
+      throw new Error('该车架号在该业务日已入库，无需重复提交');
+    }
+
     await postRowsToBackend({
       tableType: input.tableType,
       backendStoreId,
-      rows: merged.map((row) => ({
-        id: '',
-        storeId: store.id,
-        storeName: store.name,
-        tableType: input.tableType,
-        vin: row.vin,
-        businessDate: row.business_date,
-        installedFlag: row.installed_flag,
-        remark: row.remark,
-        uploadRecordId: 'manual-fix',
-        sourceFileName: '',
-        rowNo: 0,
-      })),
+      rows: prepared.toUpload,
     });
 
     removeParseError(input.errorId);

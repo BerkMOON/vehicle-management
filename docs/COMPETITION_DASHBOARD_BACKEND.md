@@ -91,12 +91,10 @@
 1. 用户选择 xlsx
 2. 前端 parseExcelFile() → rows[]；errors[] 仅留在前端
 3. 前端 parseFileName() + 门店映射 → **store_id**、表类型（新车 / 售后）
-4. POST /new-car/rows 或 POST /after-sales/rows（JSON）
-5. 后端事务：
-   a. 从 rows 提取涉及的 business_date 列表
-   b. DELETE 该 store + 这些 business_date 的旧行
-   c. BATCH INSERT 新行
-6. 返回 { replaced_dates, inserted_count }
+4. 前端按文件涉及的业务日期范围查询后端已有行，跳过已入库的 (business_date, vin)
+5. POST /new-car/rows 或 POST /after-sales/rows（JSON，仅新增行）
+6. 后端 BATCH INSERT append；`(store_id, business_date, vin)` 冲突时更新 `installed_flag` / `remark`
+7. 返回 { replaced_dates, inserted_count }
 ```
 
 **不记录：** 文件名、上传人、上传时间、batch_id。
@@ -187,7 +185,7 @@ CREATE TABLE tb_competition_after_sales_row (
 
 | 场景 | 行为 |
 | --- | --- |
-| 北京林肯一 6/17 新车表再次上传 | DELETE 该店 `business_date=2026-06-17` 的旧新车行，INSERT 新行 |
+| 北京林肯一 6/17 新车表再次上传 | 追加新 VIN；同 `(store_id, business_date, vin)` 已存在则更新安装标记/备注 |
 | 北京林肯一 6/17 + 6/18 各传一次 | 两日行并存，**累加** |
 | 6/17 与 6/18 有相同 VIN | 指标按日期范围 VIN **去重** 后计数 |
 

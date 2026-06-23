@@ -2,7 +2,7 @@ import { UserSelfInfo } from '@/services/user/typings';
 import { InboxOutlined } from '@ant-design/icons';
 import { useModel } from '@umijs/max';
 import type { UploadProps } from 'antd';
-import { Alert, Button, Table, Upload, message } from 'antd';
+import { Alert, Button, Table, Typography, Upload, message } from 'antd';
 import dayjs from 'dayjs';
 import React, { useMemo, useRef, useState } from 'react';
 import { TABLE_TYPE_LABEL } from '../constants';
@@ -97,7 +97,17 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
       setConfirmVisible(false);
       setConfirmDrafts([]);
       message.success(
-        `上传完成：成功 ${result.successCount}，失败 ${result.errorCount}`,
+        `上传完成：成功 ${result.successCount}，失败 ${result.errorCount}${
+          result.records.reduce(
+            (sum, item) => sum + (item.skippedExistingCount ?? 0),
+            0,
+          ) > 0
+            ? `，跳过已入库 ${result.records.reduce(
+                (sum, item) => sum + (item.skippedExistingCount ?? 0),
+                0,
+              )} 行`
+            : ''
+        }`,
       );
       onChanged();
     } catch (error: any) {
@@ -135,7 +145,8 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
             <li>文件名需包含门店名与表类型关键词（新车 / 售后 / 入厂检测）</li>
             <li>选择文件后会弹出确认框，可修改门店与表类型后再提交</li>
             <li>
-              同一门店同一表类型同一业务日期重复上传时，会用新数据整体替换旧数据
+              上传前会对比后端已有数据，跳过该门店已入库的「业务日期 + VIN」，仅
+              append 新增行
             </li>
             <li>当前上传人：{uploader}（记录在本地浏览器，不上传后端）</li>
           </ul>
@@ -221,7 +232,18 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
             render: (dates: string[]) =>
               dates.length > 0 ? dates.join('、') : '-',
           },
-          { title: '有效行', dataIndex: 'validRowCount', width: 80 },
+          { title: '新增上传', dataIndex: 'validRowCount', width: 80 },
+          {
+            title: '跳过已入库',
+            dataIndex: 'skippedExistingCount',
+            width: 90,
+            render: (count?: number) =>
+              count && count > 0 ? (
+                <Typography.Text type="warning">{count}</Typography.Text>
+              ) : (
+                '-'
+              ),
+          },
           {
             title: '状态',
             dataIndex: 'parseStatus',

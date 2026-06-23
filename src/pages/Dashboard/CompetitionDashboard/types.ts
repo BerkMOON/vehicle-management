@@ -59,6 +59,8 @@ export interface UploadRecord {
   uploadedBy?: string;
   rowCount: number;
   validRowCount: number;
+  /** 后端已存在而跳过的行数 */
+  skippedExistingCount?: number;
   parseStatus: UploadParseStatus;
   errorMessage?: string;
 }
@@ -118,6 +120,15 @@ export interface UploadConfirmDraft {
   /** 文件名自动识别说明 */
   matchHint: string;
 }
+
+export type UploadDraftParsePreview = {
+  loading: boolean;
+  parsedCount: number;
+  uploadCount: number;
+  mergedDuplicateCount: number;
+  skippedExistingCount: number;
+  errorCount: number;
+};
 
 export interface BackendBinding {
   vin: string;
