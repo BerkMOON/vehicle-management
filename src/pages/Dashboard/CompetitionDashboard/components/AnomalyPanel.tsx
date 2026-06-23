@@ -1,16 +1,13 @@
-import { Button, Space, Table, Tag } from 'antd';
-import React from 'react';
+import { Button, Space, Table, Tag, message } from 'antd';
+import React, { useState } from 'react';
+import { TABLE_TYPE_LABEL } from '../constants';
 import { CompetitionDashboardService } from '../services/competitionService';
-import { AnomalyItem } from '../types';
+import { AnomalyItem, ParseErrorRow } from '../types';
+import ParseErrorFixModal from './ParseErrorFixModal';
 
 interface AnomalyPanelProps {
   anomalies: AnomalyItem[];
-  parseErrors: Array<{
-    fileName: string;
-    rowNo: number;
-    reason: string;
-    rawVin?: string;
-  }>;
+  parseErrors: ParseErrorRow[];
   onChanged: () => void;
   onClearParseErrors?: () => void;
 }
@@ -28,6 +25,29 @@ const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
   onChanged,
   onClearParseErrors,
 }) => {
+  const [fixRecord, setFixRecord] = useState<ParseErrorRow | null>(null);
+  const [fixSubmitting, setFixSubmitting] = useState(false);
+
+  const openParseErrors = parseErrors.filter((item) => item.status === 'open');
+
+  const handleFixSubmit = async (
+    input: Parameters<
+      typeof CompetitionDashboardService.submitParseErrorFix
+    >[0],
+  ) => {
+    setFixSubmitting(true);
+    try {
+      await CompetitionDashboardService.submitParseErrorFix(input);
+      message.success('已修正并入库');
+      setFixRecord(null);
+      onChanged();
+    } catch (error: any) {
+      message.error(error?.message || '修正入库失败');
+    } finally {
+      setFixSubmitting(false);
+    }
+  };
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       <div>
@@ -78,10 +98,12 @@ const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
         />
       </div>
 
-      {parseErrors.length > 0 && (
+      {openParseErrors.length > 0 && (
         <div>
           <Space style={{ marginBottom: 8 }}>
-            <h3 style={{ margin: 0 }}>解析失败行（{parseErrors.length}）</h3>
+            <h3 style={{ margin: 0 }}>
+              解析失败行（{openParseErrors.length}）
+            </h3>
             {onClearParseErrors && (
               <Button size="small" onClick={onClearParseErrors}>
                 清空记录
@@ -89,19 +111,75 @@ const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
             )}
           </Space>
           <Table
-            rowKey={(row, index) => `${row.fileName}-${row.rowNo}-${index}`}
+            rowKey="id"
             size="small"
-            dataSource={parseErrors}
+            dataSource={openParseErrors}
             pagination={{ pageSize: 10 }}
+            scroll={{ x: 1200 }}
             columns={[
-              { title: '文件', dataIndex: 'fileName', width: 220 },
-              { title: '行号', dataIndex: 'rowNo', width: 80 },
-              { title: '原因', dataIndex: 'reason' },
-              { title: '原始车架号', dataIndex: 'rawVin', width: 180 },
+              {
+                title: '文件',
+                dataIndex: 'fileName',
+                width: 200,
+                ellipsis: true,
+              },
+              { title: '行号', dataIndex: 'rowNo', width: 70 },
+              { title: '门店', dataIndex: 'storeName', width: 110 },
+              {
+                title: '表类型',
+                dataIndex: 'tableType',
+                width: 100,
+                render: (value: ParseErrorRow['tableType']) =>
+                  value ? TABLE_TYPE_LABEL[value] : '-',
+              },
+              {
+                title: '原始日期',
+                dataIndex: 'rawBusinessDate',
+                width: 110,
+                render: (value?: string) => value || '-',
+              },
+              {
+                title: '业务日期',
+                dataIndex: 'businessDate',
+                width: 110,
+                render: (value?: string) => value || '-',
+              },
+              {
+                title: '原始车架号',
+                dataIndex: 'rawVin',
+                width: 180,
+                ellipsis: true,
+                render: (value?: string) => value || '-',
+              },
+              {
+                title: '安装标记',
+                dataIndex: 'installedFlag',
+                width: 90,
+                render: (value?: string) => value || '-',
+              },
+              { title: '原因', dataIndex: 'reason', ellipsis: true },
+              {
+                title: '操作',
+                width: 100,
+                fixed: 'right',
+                render: (_: unknown, record: ParseErrorRow) => (
+                  <Button type="link" onClick={() => setFixRecord(record)}>
+                    修正入库
+                  </Button>
+                ),
+              },
             ]}
           />
         </div>
       )}
+
+      <ParseErrorFixModal
+        open={!!fixRecord}
+        record={fixRecord}
+        submitting={fixSubmitting}
+        onSubmit={handleFixSubmit}
+        onCancel={() => setFixRecord(null)}
+      />
     </Space>
   );
 };

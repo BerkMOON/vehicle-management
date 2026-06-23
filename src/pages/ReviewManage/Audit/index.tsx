@@ -9,6 +9,7 @@ import { Button, Card, Popconfirm, Result, Spin } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import ReactPlayer from 'react-player';
 import AuditForm from '../Components/AuditForm';
+import MachineAuditResultDisplay from '../Components/MachineAuditResultDisplay';
 import MpegTsVideoPlayer from '../Components/MpegTsVideoPlayer';
 import styles from './index.scss';
 
@@ -168,11 +169,10 @@ const AuditPage: React.FC = () => {
             <div style={{ marginTop: 12 }}>
               触发时间点：{parseVideoTime(auditTaskDetail?.video_path)}
             </div>
-            <div>
-              审核任务评分：
-              {auditTaskDetail?.machine_audit_result?.overall_score / 100}分(0 ~
-              100分)
-            </div>
+            <MachineAuditResultDisplay
+              compact
+              result={auditTaskDetail?.machine_audit_result}
+            />
             <div>设备SN：{auditTaskDetail?.sn || '-'}</div>
             <div style={{ marginTop: 12 }}>
               <Popconfirm

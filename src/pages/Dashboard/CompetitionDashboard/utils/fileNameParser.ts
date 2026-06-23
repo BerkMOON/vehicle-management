@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { DEFAULT_COMPETITION_CONFIG } from '../constants';
 import { CompetitionConfig, CompetitionStore, TableType } from '../types';
-import { resolveStoreByName } from './storeMapper';
+import { detectBrandFromFileName, resolveStoreByName } from './storeMapper';
 
 export interface ParsedFileName {
   store: CompetitionStore | null;
@@ -95,7 +95,12 @@ export function matchStoreByFileName(
   fileName: string,
   stores: CompetitionStore[] = DEFAULT_COMPETITION_CONFIG.stores,
 ): CompetitionStore | null {
-  return resolveStoreByName(normalizeText(fileName), stores);
+  const brand = detectBrandFromFileName(fileName);
+  const activeStores = stores.filter((store) => store.active);
+  const candidateStores = brand
+    ? activeStores.filter((store) => store.brand === brand)
+    : activeStores;
+  return resolveStoreByName(normalizeText(fileName), candidateStores);
 }
 
 export function parseFileName(

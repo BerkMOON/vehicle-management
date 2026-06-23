@@ -6,6 +6,7 @@ import { Navigate, useAccess, useParams, useSearchParams } from '@umijs/max';
 import { Card, Descriptions, Result, Spin } from 'antd';
 import React from 'react';
 import ReactPlayer from 'react-player';
+import MachineAuditResultDisplay from '../../Components/MachineAuditResultDisplay';
 import MpegTsVideoPlayer from '../../Components/MpegTsVideoPlayer';
 
 /** react-player 的 File 模式不识别 .ts；裸 TS 需 mpegts.js（MSE）播放 */
@@ -122,33 +123,9 @@ const TaskDetail: React.FC = () => {
             </Card>
           )}
 
-          {needAuditResult && detail?.machine_audit_result?.overall_score && (
-            <Card title="审核评分" style={{ marginTop: 24 }}>
-              <Descriptions column={2}>
-                <Descriptions.Item label="审核评分">
-                  {detail?.machine_audit_result?.overall_score / 100}分(0 ~
-                  100分)
-                </Descriptions.Item>
-                <Descriptions.Item label="审核子评分">
-                  <div>
-                    {detail?.machine_audit_result?.sub_scores?.map(
-                      (subScore) => (
-                        <div key={subScore.code}>
-                          {subScore.name}: {subScore.score / 100}分(
-                          {subScore.weight}分权重)
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </Descriptions.Item>
-                <Descriptions.Item label="审核标签">
-                  <div>
-                    {detail?.machine_audit_result?.tags?.map((tag) => (
-                      <div key={tag.code}>{tag.name}</div>
-                    ))}
-                  </div>
-                </Descriptions.Item>
-              </Descriptions>
+          {needAuditResult && detail?.machine_audit_result && (
+            <Card title="机审评分" style={{ marginTop: 24 }}>
+              <MachineAuditResultDisplay result={detail.machine_audit_result} />
             </Card>
           )}
         </Card>

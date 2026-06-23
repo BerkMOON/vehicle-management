@@ -167,6 +167,9 @@ export function parseExcelFile(params: {
 
     if (!businessDate) {
       errors.push({
+        id: `${uploadRecordId}-${raw.rowNo}`,
+        status: 'open',
+        createdAt: new Date().toISOString(),
         fileName,
         rowNo: raw.rowNo,
         reason: '业务日期无效',
@@ -176,6 +179,9 @@ export function parseExcelFile(params: {
     }
     if (!vinResult.valid) {
       errors.push({
+        id: `${uploadRecordId}-${raw.rowNo}`,
+        status: 'open',
+        createdAt: new Date().toISOString(),
         fileName,
         rowNo: raw.rowNo,
         reason: vinResult.reason || '车架号无效',

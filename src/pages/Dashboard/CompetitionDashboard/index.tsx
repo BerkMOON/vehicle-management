@@ -26,19 +26,31 @@ import React, {
 import AnomalyPanel from './components/AnomalyPanel';
 import RankingPanel from './components/RankingPanel';
 import ReturnMonitorPanel from './components/ReturnMonitorPanel';
+import RowDataPanel from './components/RowDataPanel';
 import UploadPanel from './components/UploadPanel';
 import { DEFAULT_COMPETITION_CONFIG } from './constants';
 import './index.less';
 import { CompetitionDashboardService } from './services/competitionService';
-import { StoreBackendRefreshStatus, StoreMetrics } from './types';
-import { buildReturnStatus } from './utils/metrics';
+import {
+  MetricsDateRange,
+  StoreBackendRefreshStatus,
+  StoreMetrics,
+  StoreReturnStatus,
+} from './types';
+import { getDefaultMetricsDateRange } from './utils/date';
 import { formatRatio } from './utils/rankingTable';
 
 const CompetitionDashboard: React.FC = () => {
   const [config, setConfig] = useState(CompetitionDashboardService.getConfig());
+  const [storageReady, setStorageReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     dayjs().format('YYYY-MM-DD'),
   );
+  const [metricsDateRange, setMetricsDateRange] = useState<MetricsDateRange>(
+    () => getDefaultMetricsDateRange(CompetitionDashboardService.getConfig()),
+  );
+  const metricsDateRangeRef = useRef(metricsDateRange);
+  metricsDateRangeRef.current = metricsDateRange;
   const [metrics, setMetrics] = useState<StoreMetrics[]>([]);
   const [loading, setLoading] = useState(false);
   const [storeRefreshStatus, setStoreRefreshStatus] = useState<
@@ -50,6 +62,7 @@ const CompetitionDashboard: React.FC = () => {
   const [parseErrors, setParseErrors] = useState(
     CompetitionDashboardService.getParseErrors(),
   );
+  const [returnStatus, setReturnStatus] = useState<StoreReturnStatus[]>([]);
 
   const reloadLocal = useCallback(() => {
     setConfig(CompetitionDashboardService.getConfig());
@@ -79,34 +92,37 @@ const CompetitionDashboard: React.FC = () => {
     setStoreRefreshStatus({});
 
     try {
-      await CompetitionDashboardService.refreshMetricsIncremental({
-        onExcelReady: (excelMetrics) => {
-          if (session !== refreshSessionRef.current) return;
-          setMetrics(excelMetrics);
+      await CompetitionDashboardService.refreshMetricsIncremental(
+        {
+          onExcelReady: (excelMetrics) => {
+            if (session !== refreshSessionRef.current) return;
+            setMetrics(excelMetrics);
+          },
+          onStoreStatus: (storeId, status) => {
+            if (session !== refreshSessionRef.current) return;
+            setStoreRefreshStatus((prev) => ({ ...prev, [storeId]: status }));
+          },
+          onStoreMetrics: (storeId, storeMetrics) => {
+            if (session !== refreshSessionRef.current) return;
+            setMetrics((prev) =>
+              prev.map((item) =>
+                item.storeId === storeId ? storeMetrics : item,
+              ),
+            );
+          },
+          onComplete: (result) => {
+            if (session !== refreshSessionRef.current) return;
+            setMetrics(result.metrics);
+            setBackendStats({
+              bindings: result.bindingsCount,
+              detections: result.detectionsCount,
+              linkedStores: result.linkedStoreCount,
+            });
+            setLoading(false);
+          },
         },
-        onStoreStatus: (storeId, status) => {
-          if (session !== refreshSessionRef.current) return;
-          setStoreRefreshStatus((prev) => ({ ...prev, [storeId]: status }));
-        },
-        onStoreMetrics: (storeId, storeMetrics) => {
-          if (session !== refreshSessionRef.current) return;
-          setMetrics((prev) =>
-            prev.map((item) =>
-              item.storeId === storeId ? storeMetrics : item,
-            ),
-          );
-        },
-        onComplete: (result) => {
-          if (session !== refreshSessionRef.current) return;
-          setMetrics(result.metrics);
-          setBackendStats({
-            bindings: result.bindingsCount,
-            detections: result.detectionsCount,
-            linkedStores: result.linkedStoreCount,
-          });
-          setLoading(false);
-        },
-      });
+        metricsDateRangeRef.current,
+      );
     } catch (error) {
       console.error(error);
       if (session === refreshSessionRef.current) {
@@ -116,9 +132,44 @@ const CompetitionDashboard: React.FC = () => {
     }
   }, []);
 
+  const handleMetricsDateRangeChange = useCallback(
+    async (range: MetricsDateRange) => {
+      setMetricsDateRange(range);
+      try {
+        const next = await CompetitionDashboardService.recalculateMetrics(
+          range,
+        );
+        setMetrics(next);
+      } catch (error) {
+        console.error(error);
+        message.error('指标查询失败');
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
+    if (!storageReady) return;
+    CompetitionDashboardService.fetchReturnStatus(selectedDate)
+      .then(setReturnStatus)
+      .catch((error) => {
+        console.error(error);
+      });
+  }, [storageReady, selectedDate, refreshTick]);
+
+  useEffect(() => {
+    CompetitionDashboardService.initStorage()
+      .then(() => setStorageReady(true))
+      .catch((error) => {
+        console.error(error);
+        message.error('竞赛数据加载失败，请刷新页面重试');
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
     refreshMetrics();
-  }, [refreshMetrics, refreshTick]);
+  }, [storageReady, refreshMetrics, refreshTick]);
 
   useEffect(() => {
     const minutes = config.autoRefreshMinutes;
@@ -128,15 +179,6 @@ const CompetitionDashboard: React.FC = () => {
     }, minutes * 60 * 1000);
     return () => window.clearInterval(timer);
   }, [config.autoRefreshMinutes, refreshMetrics]);
-
-  const returnStatus = useMemo(() => {
-    return buildReturnStatus({
-      config,
-      date: selectedDate,
-      vehicleRows: CompetitionDashboardService.getVehicleRows(),
-      uploadRecords: CompetitionDashboardService.getUploadRecords(),
-    });
-  }, [config, selectedDate, refreshTick]);
 
   const summary = useMemo(() => {
     const completedStores = returnStatus.filter(
@@ -224,12 +266,11 @@ const CompetitionDashboard: React.FC = () => {
       </Row>
 
       <Typography.Paragraph type="secondary">
-        一期：上传表与回传记录保存在本机浏览器；指标分母来自
-        Excel，分子来自后台只读接口（设备绑定 {backendStats.bindings} 条 /
-        入厂留痕 {backendStats.detections} 条，已匹配{' '}
-        {backendStats.linkedStores} 家门店）。
+        二期：Excel 在前端解析后提交后端落库；指标与回传监控由{' '}
+        <code>/api/admin/competition</code> 统一计算，已匹配{' '}
+        {backendStats.linkedStores} 家门店。
         {refreshProgress && refreshProgress.loadingCount > 0
-          ? ` 后台数据刷新中：${refreshProgress.done}/${refreshProgress.total} 店已完成。`
+          ? ` 指标刷新中：${refreshProgress.done}/${refreshProgress.total} 店已完成。`
           : ''}
       </Typography.Paragraph>
 
@@ -252,11 +293,18 @@ const CompetitionDashboard: React.FC = () => {
             children: (
               <RankingPanel
                 metrics={metrics}
-                startDate={config.startDate}
-                endDate={config.endDate}
+                metricsDateRange={metricsDateRange}
+                competitionStartDate={config.startDate}
+                competitionEndDate={config.endDate}
+                onMetricsDateRangeChange={handleMetricsDateRangeChange}
                 storeRefreshStatus={storeRefreshStatus}
               />
             ),
+          },
+          {
+            key: 'rows',
+            label: '行数据明细',
+            children: <RowDataPanel />,
           },
           {
             key: 'upload',
@@ -279,7 +327,10 @@ const CompetitionDashboard: React.FC = () => {
               <AnomalyPanel
                 anomalies={CompetitionDashboardService.getAnomalies()}
                 parseErrors={parseErrors}
-                onChanged={reloadLocal}
+                onChanged={() => {
+                  reloadLocal();
+                  refreshMetrics();
+                }}
                 onClearParseErrors={() => {
                   CompetitionDashboardService.clearParseErrors();
                   reloadLocal();
@@ -351,7 +402,7 @@ const CompetitionDashboard: React.FC = () => {
           </Form.Item>
           <Popconfirm
             title="确定清空本机竞赛数据？"
-            description="将删除已上传 VIN、回传记录与排名快照，不可恢复。"
+            description="将删除本机待处理文件、解析错误与上传记录，后端已入库数据不受影响。"
             onConfirm={() => {
               CompetitionDashboardService.clearAllLocalData();
               setConfig(DEFAULT_COMPETITION_CONFIG);

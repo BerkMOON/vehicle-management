@@ -24,6 +24,12 @@ export interface CompetitionConfig {
   stores: CompetitionStore[];
 }
 
+/** 指标计算所选业务日期范围（Excel 业务日期 + 后台绑定/检测日期） */
+export interface MetricsDateRange {
+  startDate: string;
+  endDate: string;
+}
+
 export interface VehicleRow {
   id: string;
   storeId: string;
@@ -34,6 +40,7 @@ export interface VehicleRow {
   businessDate: string;
   installedFlag?: string;
   repairType?: string;
+  remark?: string;
   uploadRecordId: string;
   sourceFileName: string;
   rowNo: number;
@@ -57,10 +64,38 @@ export interface UploadRecord {
 }
 
 export interface ParseErrorRow {
+  id: string;
   fileName: string;
   rowNo: number;
   reason: string;
   rawVin?: string;
+  /** Excel 原始日期单元格 */
+  rawBusinessDate?: string;
+  businessDate?: string;
+  installedFlag?: string;
+  remark?: string;
+  storeId?: string;
+  storeName?: string;
+  tableType?: TableType;
+  status: 'open' | 'resolved';
+  createdAt: string;
+}
+
+/** 解析阶段尚未写入 id 的失败行 */
+export type ParseErrorDraft = Omit<
+  ParseErrorRow,
+  'id' | 'status' | 'createdAt'
+>;
+
+/** 手动修正解析失败行后提交 */
+export interface ParseErrorFixInput {
+  errorId: string;
+  storeId: string;
+  tableType: TableType;
+  businessDate: string;
+  vin: string;
+  installedFlag?: string;
+  remark?: string;
 }
 
 export interface PendingFile {
@@ -69,6 +104,19 @@ export interface PendingFile {
   uploadedAt: string;
   reason: string;
   fileBase64?: string;
+}
+
+/** 上传确认弹窗中的单文件草稿（尚未请求后端） */
+export interface UploadConfirmDraft {
+  id: string;
+  file: File;
+  fileName: string;
+  storeId: string | null;
+  storeName: string | null;
+  tableType: TableType | null;
+  reportDate: string | null;
+  /** 文件名自动识别说明 */
+  matchHint: string;
 }
 
 export interface BackendBinding {

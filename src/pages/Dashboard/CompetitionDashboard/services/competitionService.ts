@@ -1,16 +1,29 @@
+import { CompetitionDashboardAPI } from '@/services/competitionDashboard';
+import type { CompetitionRowInput } from '@/services/competitionDashboard/typings.d';
 import dayjs from 'dayjs';
 import {
   AnomalyItem,
-  BackendBinding,
-  BackendDetection,
   BatchUploadResult,
   CompetitionConfig,
+  MetricsDateRange,
+  ParseErrorDraft,
+  ParseErrorFixInput,
+  ParseErrorRow,
   PendingFile,
   RefreshMetricsProgressHandlers,
   StoreMetrics,
+  StoreReturnStatus,
   TableType,
+  UploadConfirmDraft,
   UploadRecord,
+  VehicleRow,
 } from '../types';
+import {
+  assertApiSuccess,
+  mapBackendMetricsToStoreMetrics,
+  mergeReturnStatus,
+} from '../utils/apiAdapter';
+import { getDefaultMetricsDateRange } from '../utils/date';
 import {
   base64ToBuffer,
   fileToBase64,
@@ -18,219 +31,409 @@ import {
   readFileBuffer,
 } from '../utils/excelParser';
 import { parseFileName } from '../utils/fileNameParser';
-import { calculateStoreMetrics, detectAnomalies } from '../utils/metrics';
+import {
+  BackendStoreLink,
+  fetchBackendStoreLinks,
+  invalidateBackendStoreCache,
+} from '../utils/storeIdMap';
+import { cleanVin } from '../utils/vin';
 import {
   appendParseErrors,
   clearAllLocalData,
   clearParseErrors,
-  fetchBackendStoreLinks,
-  fetchStoreBackendData,
   getAnomalies,
   getConfig,
-  getMetricsSnapshot,
   getParseErrors,
   getPendingFiles,
   getUploadRecords,
-  getVehicleRows,
-  replaceRowsByBusinessDates,
+  initCompetitionStorage,
+  removeParseError,
   saveAnomalies,
   saveConfig,
-  saveMetricsSnapshot,
   savePendingFiles,
   saveUploadRecords,
-  saveVehicleRows,
 } from './dataProvider';
 
 function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function enrichParseErrors(
+  drafts: ParseErrorDraft[],
+  context: {
+    storeId?: string;
+    storeName?: string;
+    tableType?: TableType;
+    fileName: string;
+  },
+): ParseErrorRow[] {
+  const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+  return drafts.map((draft) => ({
+    ...draft,
+    fileName: draft.fileName || context.fileName,
+    storeId: draft.storeId ?? context.storeId,
+    storeName: draft.storeName ?? context.storeName,
+    tableType: draft.tableType ?? context.tableType,
+    id: createId('parse-err'),
+    status: 'open' as const,
+    createdAt: now,
+  }));
+}
+
+async function fetchAllRowsForStoreDate(params: {
+  tableType: TableType;
+  backendStoreId: number;
+  businessDate: string;
+}): Promise<CompetitionRowInput[]> {
+  const all: CompetitionRowInput[] = [];
+  let page = 1;
+  let totalPage = 1;
+
+  while (page <= totalPage) {
+    const res =
+      params.tableType === 'new_car'
+        ? await CompetitionDashboardAPI.getNewCarRows({
+            store_id: params.backendStoreId,
+            business_date: params.businessDate,
+            page,
+            limit: 200,
+          })
+        : await CompetitionDashboardAPI.getAfterSalesRows({
+            store_id: params.backendStoreId,
+            business_date: params.businessDate,
+            page,
+            limit: 200,
+          });
+    const data = assertApiSuccess(res, '查询已有行失败');
+    totalPage = data.meta?.total_page || 1;
+    (data.list || []).forEach((item) => {
+      all.push({
+        business_date: item.business_date,
+        vin: item.vin,
+        installed_flag: item.installed_flag,
+        remark: item.remark,
+      });
+    });
+    page += 1;
+  }
+
+  return all;
+}
+
+function mergeRowInputs(
+  existing: CompetitionRowInput[],
+  incoming: CompetitionRowInput,
+): CompetitionRowInput[] {
+  const map = new Map<string, CompetitionRowInput>();
+  existing.forEach((row) => {
+    map.set(`${row.business_date}|${row.vin}`, row);
+  });
+  map.set(`${incoming.business_date}|${incoming.vin}`, incoming);
+  return Array.from(map.values());
+}
+
+function getBackendStoreId(
+  links: BackendStoreLink[],
+  competitionStoreId: string,
+): number | null {
+  const link = links.find(
+    (item) => item.competitionStoreId === competitionStoreId,
+  );
+  if (!link) return null;
+  const storeId = Number(link.backendStoreId);
+  return Number.isFinite(storeId) ? storeId : null;
+}
+
+function toApiRows(rows: VehicleRow[]): CompetitionRowInput[] {
+  return rows.map((row) => ({
+    business_date: row.businessDate,
+    vin: row.vin,
+    installed_flag: row.installedFlag,
+    remark: row.remark,
+  }));
+}
+
+async function postRowsToBackend(params: {
+  tableType: TableType;
+  backendStoreId: number;
+  rows: VehicleRow[];
+}) {
+  const payload = {
+    store_id: params.backendStoreId,
+    rows: toApiRows(params.rows),
+  };
+  if (params.tableType === 'new_car') {
+    const res = await CompetitionDashboardAPI.replaceNewCarRows(payload);
+    return assertApiSuccess(res, '新车数据写入失败');
+  }
+  const res = await CompetitionDashboardAPI.replaceAfterSalesRows(payload);
+  return assertApiSuccess(res, '售后数据写入失败');
+}
+
+async function fetchMetricsFromBackend(
+  config: CompetitionConfig,
+  metricsDateRange: MetricsDateRange,
+): Promise<{ metrics: StoreMetrics[]; links: BackendStoreLink[] }> {
+  const links = await fetchBackendStoreLinks(config);
+  const res = await CompetitionDashboardAPI.getMetrics({
+    start_date: metricsDateRange.startDate,
+    end_date: metricsDateRange.endDate,
+  });
+  const data = assertApiSuccess(res, '指标查询失败');
+  const metrics = mapBackendMetricsToStoreMetrics({
+    config,
+    items: data.list || [],
+    links,
+    calculatedAt: data.calculated_at || dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    metricsDateRange,
+  });
+  return { metrics, links };
+}
+
 export const CompetitionDashboardService = {
   getConfig,
   saveConfig,
+  initStorage: initCompetitionStorage,
 
-  async refreshMetrics(): Promise<{
+  async recalculateMetrics(
+    metricsDateRange: MetricsDateRange,
+  ): Promise<StoreMetrics[]> {
+    const config = getConfig();
+    const { metrics } = await fetchMetricsFromBackend(config, metricsDateRange);
+    return metrics;
+  },
+
+  async refreshMetrics(metricsDateRange?: MetricsDateRange): Promise<{
     metrics: StoreMetrics[];
     bindingsCount: number;
     detectionsCount: number;
     linkedStoreCount: number;
   }> {
-    return new Promise((resolve) => {
-      this.refreshMetricsIncremental({
-        onExcelReady: () => {},
-        onStoreStatus: () => {},
-        onStoreMetrics: () => {},
-        onComplete: resolve,
-      });
+    return new Promise((resolve, reject) => {
+      this.refreshMetricsIncremental(
+        {
+          onExcelReady: () => {},
+          onStoreStatus: () => {},
+          onStoreMetrics: () => {},
+          onComplete: resolve,
+        },
+        metricsDateRange,
+      ).catch(reject);
     });
   },
 
-  /** 按门店增量刷新：先展示 Excel 分母，各店后台数据就绪后逐店更新分子 */
   async refreshMetricsIncremental(
     handlers: RefreshMetricsProgressHandlers,
+    metricsDateRange?: MetricsDateRange,
   ): Promise<void> {
+    await initCompetitionStorage();
     const config = getConfig();
-    const vehicleRows = getVehicleRows();
+    const range = metricsDateRange ?? getDefaultMetricsDateRange(config);
     const activeStores = config.stores.filter((store) => store.active);
 
-    let storeLinks: Awaited<ReturnType<typeof fetchBackendStoreLinks>> = [];
+    let links: BackendStoreLink[] = [];
     try {
-      storeLinks = await fetchBackendStoreLinks(config);
+      links = await fetchBackendStoreLinks(config);
     } catch (error) {
       console.warn('[CompetitionDashboard] fetch store links failed', error);
     }
 
-    const linkMap = new Map(
-      storeLinks.map((link) => [link.competitionStoreId, link]),
-    );
-
-    const metricsMap = new Map<string, StoreMetrics>();
     activeStores.forEach((store) => {
-      metricsMap.set(
-        store.id,
-        calculateStoreMetrics({
-          config,
-          storeId: store.id,
-          vehicleRows,
-          bindings: [],
-          detections: [],
-        }),
+      const link = links.find((item) => item.competitionStoreId === store.id);
+      handlers.onStoreStatus(store.id, link ? 'loading' : 'no_link');
+    });
+
+    try {
+      const { metrics, links: resolvedLinks } = await fetchMetricsFromBackend(
+        config,
+        range,
       );
-    });
-
-    const excelMetrics = activeStores.map((store) => metricsMap.get(store.id)!);
-    handlers.onExcelReady(excelMetrics);
-
-    const allBindings: BackendBinding[] = [];
-    const allDetections: BackendDetection[] = [];
-
-    await Promise.all(
-      activeStores.map(async (store) => {
-        const link = linkMap.get(store.id);
-        if (!link) {
-          handlers.onStoreStatus(store.id, 'no_link');
-          return;
-        }
-
-        handlers.onStoreStatus(store.id, 'loading');
-        try {
-          const { bindings, detections } = await fetchStoreBackendData(
-            link,
-            config,
-          );
-          allBindings.push(...bindings);
-          allDetections.push(...detections);
-
-          const storeMetrics = calculateStoreMetrics({
-            config,
-            storeId: store.id,
-            vehicleRows,
-            bindings,
-            detections,
-          });
-          metricsMap.set(store.id, storeMetrics);
+      handlers.onExcelReady(metrics);
+      activeStores.forEach((store) => {
+        const link = resolvedLinks.find(
+          (item) => item.competitionStoreId === store.id,
+        );
+        const storeMetrics = metrics.find((item) => item.storeId === store.id);
+        if (storeMetrics) {
           handlers.onStoreMetrics(store.id, storeMetrics);
-          handlers.onStoreStatus(store.id, 'done');
-        } catch (error) {
-          console.warn(
-            `[CompetitionDashboard] store refresh failed: ${store.name}`,
-            error,
-          );
-          handlers.onStoreStatus(store.id, 'error');
         }
-      }),
-    );
+        handlers.onStoreStatus(store.id, link ? 'done' : 'no_link');
+      });
+      saveAnomalies([]);
+      handlers.onComplete({
+        metrics,
+        bindingsCount: 0,
+        detectionsCount: 0,
+        linkedStoreCount: resolvedLinks.length,
+      });
+    } catch (error) {
+      console.error('[CompetitionDashboard] metrics refresh failed', error);
+      activeStores.forEach((store) => {
+        handlers.onStoreStatus(store.id, 'error');
+      });
+      throw error;
+    }
+  },
 
-    const metrics = activeStores.map((store) => metricsMap.get(store.id)!);
-    const backendLoaded = allBindings.length > 0 || allDetections.length > 0;
-    const anomalies = detectAnomalies({
-      vehicleRows,
-      bindings: allBindings,
-      detections: allDetections,
-      enableBackendCheck: backendLoaded,
-    });
-    saveMetricsSnapshot(metrics);
-    saveAnomalies(anomalies);
-
-    handlers.onComplete({
-      metrics,
-      bindingsCount: allBindings.length,
-      detectionsCount: allDetections.length,
-      linkedStoreCount: storeLinks.length,
+  async fetchReturnStatus(date: string): Promise<StoreReturnStatus[]> {
+    const config = getConfig();
+    const links = await fetchBackendStoreLinks(config);
+    const res = await CompetitionDashboardAPI.getReturnStatus({ date });
+    const data = assertApiSuccess(res, '回传监控查询失败');
+    return mergeReturnStatus({
+      config,
+      links,
+      apiList: data.list || [],
     });
   },
 
-  getMetricsSnapshot,
-  getVehicleRows,
   getUploadRecords,
   getPendingFiles,
   getAnomalies,
   getParseErrors,
   clearParseErrors,
-  clearAllLocalData,
+  clearAllLocalData: () => {
+    clearAllLocalData();
+    invalidateBackendStoreCache();
+  },
 
-  async uploadFiles(
-    files: File[],
+  async prepareUploadDrafts(files: File[]): Promise<UploadConfirmDraft[]> {
+    await initCompetitionStorage();
+    const config = getConfig();
+
+    return files.map((file) => {
+      const parsed = parseFileName(file.name, config.stores, config);
+      let matchHint = '文件名自动识别';
+      if (!parsed.store && !parsed.tableType) {
+        matchHint = '未识别门店与表类型，请手动选择';
+      } else if (!parsed.store) {
+        matchHint = '未识别门店，请手动选择';
+      } else if (!parsed.tableType) {
+        matchHint = '未识别表类型，请手动选择';
+      }
+
+      return {
+        id: createId('draft'),
+        file,
+        fileName: file.name,
+        storeId: parsed.store?.id ?? null,
+        storeName: parsed.store?.name ?? null,
+        tableType: parsed.tableType,
+        reportDate: parsed.reportDate,
+        matchHint,
+      };
+    });
+  },
+
+  async confirmUploadFiles(
+    drafts: UploadConfirmDraft[],
     uploadedBy?: string,
   ): Promise<BatchUploadResult> {
+    await initCompetitionStorage();
     const config = getConfig();
+    const links = await fetchBackendStoreLinks(config);
     const records: UploadRecord[] = [];
-    const parseErrors: BatchUploadResult['parseErrors'] = [];
-    let pendingFiles = getPendingFiles();
-    let successCount = 0;
+    const parseErrors: ParseErrorRow[] = [];
     let pendingCount = 0;
+    let successCount = 0;
     let errorCount = 0;
 
-    for (const file of files) {
-      const parsedName = parseFileName(file.name, config.stores, config);
-      if (!parsedName.store || !parsedName.tableType) {
-        pendingCount += 1;
-        pendingFiles = [
-          ...pendingFiles,
-          {
-            id: createId('pending'),
-            fileName: file.name,
-            uploadedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            reason: !parsedName.store
-              ? '无法从文件名匹配门店'
-              : '无法从文件名识别表类型',
-            fileBase64: await fileToBase64(file),
-          },
-        ];
+    for (const draft of drafts) {
+      if (!draft.storeId || !draft.tableType) {
+        errorCount += 1;
+        parseErrors.push(
+          ...enrichParseErrors(
+            [
+              {
+                fileName: draft.fileName,
+                rowNo: 0,
+                reason: '未选择门店或表类型',
+              },
+            ],
+            { fileName: draft.fileName },
+          ),
+        );
+        continue;
+      }
+
+      const store = config.stores.find((item) => item.id === draft.storeId);
+      if (!store) {
+        errorCount += 1;
+        parseErrors.push(
+          ...enrichParseErrors(
+            [{ fileName: draft.fileName, rowNo: 0, reason: '门店不存在' }],
+            {
+              fileName: draft.fileName,
+              storeId: draft.storeId,
+              tableType: draft.tableType,
+            },
+          ),
+        );
+        continue;
+      }
+
+      const backendStoreId = getBackendStoreId(links, store.id);
+      if (!backendStoreId) {
+        errorCount += 1;
+        parseErrors.push(
+          ...enrichParseErrors(
+            [
+              {
+                fileName: draft.fileName,
+                rowNo: 0,
+                reason: `门店「${store.name}」未匹配到后台 store_id`,
+              },
+            ],
+            {
+              fileName: draft.fileName,
+              storeId: store.id,
+              storeName: store.name,
+              tableType: draft.tableType,
+            },
+          ),
+        );
         continue;
       }
 
       try {
-        const buffer = await readFileBuffer(file);
+        const buffer = await readFileBuffer(draft.file);
         const uploadRecordId = createId('upload');
+        const parsedName = parseFileName(draft.fileName, config.stores, config);
         const parsed = parseExcelFile({
           buffer,
-          fileName: file.name,
-          tableType: parsedName.tableType,
-          store: parsedName.store,
+          fileName: draft.fileName,
+          tableType: draft.tableType,
+          store,
           uploadRecordId,
-          reportDate: parsedName.reportDate,
+          reportDate: parsedName.reportDate ?? draft.reportDate,
           competitionConfig: config,
         });
 
-        parseErrors.push(...parsed.errors);
+        parseErrors.push(
+          ...enrichParseErrors(parsed.errors, {
+            storeId: store.id,
+            storeName: store.name,
+            tableType: draft.tableType,
+            fileName: draft.fileName,
+          }),
+        );
 
-        const mergedRows = replaceRowsByBusinessDates({
-          storeId: parsedName.store.id,
-          tableType: parsedName.tableType,
-          businessDates: parsed.businessDates,
-          newRows: parsed.rows,
-        });
-        saveVehicleRows(mergedRows);
+        if (parsed.rows.length > 0) {
+          await postRowsToBackend({
+            tableType: draft.tableType,
+            backendStoreId,
+            rows: parsed.rows,
+          });
+        }
 
-        const record: UploadRecord = {
+        records.push({
           id: uploadRecordId,
-          storeId: parsedName.store.id,
-          storeName: parsedName.store.name,
-          tableType: parsedName.tableType,
+          storeId: store.id,
+          storeName: store.name,
+          tableType: draft.tableType,
           businessDates: parsed.businessDates,
-          reportDate: parsedName.reportDate || undefined,
-          fileName: file.name,
+          reportDate: parsedName.reportDate || draft.reportDate || undefined,
+          fileName: draft.fileName,
           uploadedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
           uploadedBy,
           rowCount: parsed.rows.length + parsed.errors.length,
@@ -240,16 +443,27 @@ export const CompetitionDashboardService = {
             parsed.errors.length > 0
               ? `${parsed.errors.length} 行解析失败`
               : undefined,
-        };
-        records.push(record);
+        });
         successCount += 1;
       } catch (error: any) {
         errorCount += 1;
-        parseErrors.push({
-          fileName: file.name,
-          rowNo: 0,
-          reason: error?.message || '文件解析失败',
-        });
+        parseErrors.push(
+          ...enrichParseErrors(
+            [
+              {
+                fileName: draft.fileName,
+                rowNo: 0,
+                reason: error?.message || '文件解析或上传失败',
+              },
+            ],
+            {
+              fileName: draft.fileName,
+              storeId: draft.storeId ?? undefined,
+              storeName: store?.name,
+              tableType: draft.tableType ?? undefined,
+            },
+          ),
+        );
       }
     }
 
@@ -259,7 +473,6 @@ export const CompetitionDashboardService = {
     if (parseErrors.length > 0) {
       appendParseErrors(parseErrors);
     }
-    savePendingFiles(pendingFiles);
 
     return {
       successCount,
@@ -270,11 +483,43 @@ export const CompetitionDashboardService = {
     };
   },
 
+  /** @deprecated 请使用 prepareUploadDrafts + confirmUploadFiles */
+  async uploadFiles(
+    files: File[],
+    uploadedBy?: string,
+  ): Promise<BatchUploadResult> {
+    const drafts = await this.prepareUploadDrafts(files);
+    const ready = drafts.filter((item) => item.storeId && item.tableType);
+    const pending = drafts.filter((item) => !item.storeId || !item.tableType);
+
+    let pendingFiles = getPendingFiles();
+    for (const draft of pending) {
+      pendingFiles = [
+        ...pendingFiles,
+        {
+          id: createId('pending'),
+          fileName: draft.fileName,
+          uploadedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          reason: draft.matchHint,
+          fileBase64: await fileToBase64(draft.file),
+        },
+      ];
+    }
+    savePendingFiles(pendingFiles);
+
+    const result = await this.confirmUploadFiles(ready, uploadedBy);
+    return {
+      ...result,
+      pendingCount: result.pendingCount + pending.length,
+    };
+  },
+
   async resolvePendingFile(params: {
     pendingId: string;
     storeId: string;
     tableType: TableType;
   }) {
+    await initCompetitionStorage();
     const pendingFiles = getPendingFiles();
     const target = pendingFiles.find((item) => item.id === params.pendingId);
     if (!target?.fileBase64) {
@@ -284,6 +529,12 @@ export const CompetitionDashboardService = {
     const config = getConfig();
     const store = config.stores.find((item) => item.id === params.storeId);
     if (!store) throw new Error('门店不存在');
+
+    const links = await fetchBackendStoreLinks(config);
+    const backendStoreId = getBackendStoreId(links, store.id);
+    if (!backendStoreId) {
+      throw new Error(`门店「${store.name}」未匹配到后台 store_id`);
+    }
 
     const parsedName = parseFileName(target.fileName, config.stores, config);
     const buffer = await base64ToBuffer(target.fileBase64);
@@ -298,13 +549,13 @@ export const CompetitionDashboardService = {
       competitionConfig: config,
     });
 
-    const mergedRows = replaceRowsByBusinessDates({
-      storeId: store.id,
-      tableType: params.tableType,
-      businessDates: parsed.businessDates,
-      newRows: parsed.rows,
-    });
-    saveVehicleRows(mergedRows);
+    if (parsed.rows.length > 0) {
+      await postRowsToBackend({
+        tableType: params.tableType,
+        backendStoreId,
+        rows: parsed.rows,
+      });
+    }
 
     const record: UploadRecord = {
       id: uploadRecordId,
@@ -322,7 +573,14 @@ export const CompetitionDashboardService = {
     };
 
     if (parsed.errors.length > 0) {
-      appendParseErrors(parsed.errors);
+      appendParseErrors(
+        enrichParseErrors(parsed.errors, {
+          storeId: store.id,
+          storeName: store.name,
+          tableType: params.tableType,
+          fileName: target.fileName,
+        }),
+      );
     }
 
     saveUploadRecords([...getUploadRecords(), record]);
@@ -337,6 +595,62 @@ export const CompetitionDashboardService = {
       item.id === anomalyId ? { ...item, status: 'resolved' as const } : item,
     );
     saveAnomalies(next);
+  },
+
+  /** 手动修正解析失败行并合并写入后端（同店同日期已有行会保留） */
+  async submitParseErrorFix(input: ParseErrorFixInput): Promise<void> {
+    await initCompetitionStorage();
+    const config = getConfig();
+    const store = config.stores.find((item) => item.id === input.storeId);
+    if (!store) throw new Error('门店不存在');
+
+    const vinResult = cleanVin(input.vin);
+    if (!vinResult.valid) {
+      throw new Error(vinResult.reason || '车架号无效');
+    }
+    if (!input.businessDate?.trim()) {
+      throw new Error('请填写业务日期');
+    }
+
+    const links = await fetchBackendStoreLinks(config);
+    const backendStoreId = getBackendStoreId(links, store.id);
+    if (!backendStoreId) {
+      throw new Error(`门店「${store.name}」未匹配到后台 store_id`);
+    }
+
+    const newRow: CompetitionRowInput = {
+      business_date: input.businessDate.trim(),
+      vin: vinResult.vin,
+      installed_flag: input.installedFlag?.trim() || undefined,
+      remark: input.remark?.trim() || undefined,
+    };
+
+    const existing = await fetchAllRowsForStoreDate({
+      tableType: input.tableType,
+      backendStoreId,
+      businessDate: newRow.business_date,
+    });
+
+    const merged = mergeRowInputs(existing, newRow);
+    await postRowsToBackend({
+      tableType: input.tableType,
+      backendStoreId,
+      rows: merged.map((row) => ({
+        id: '',
+        storeId: store.id,
+        storeName: store.name,
+        tableType: input.tableType,
+        vin: row.vin,
+        businessDate: row.business_date,
+        installedFlag: row.installed_flag,
+        remark: row.remark,
+        uploadRecordId: 'manual-fix',
+        sourceFileName: '',
+        rowNo: 0,
+      })),
+    });
+
+    removeParseError(input.errorId);
   },
 };
 

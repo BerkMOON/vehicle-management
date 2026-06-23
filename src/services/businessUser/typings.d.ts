@@ -58,10 +58,17 @@ export interface UpdateRequest {
   email?: string;
 }
 
+export interface BusinessUserRoleItem {
+  company_id: number;
+  store_id: number;
+  role: string;
+}
+
 // 更新用户角色 请求参数
 export interface RoleRequest {
   user_id: number;
-  role: string;
+  username: string;
+  role_list: BusinessUserRoleItem[];
 }
 
 export interface BusinessRoleInfo {
@@ -78,11 +85,7 @@ export interface GetAllBusinessRoleResponse {
 export interface CreateRequest {
   username: string;
   password: string;
-  header_img?: string;
   nickname?: string;
   phone?: string;
   email?: string;
-  company_id: number;
-  store_id: number;
-  role: string;
 }

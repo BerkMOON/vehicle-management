@@ -4,10 +4,12 @@ import {
   BackendBinding,
   BackendDetection,
   CompetitionConfig,
+  MetricsDateRange,
   StoreMetrics,
   StoreReturnStatus,
   VehicleRow,
 } from '../types';
+import { isWithinCompetition } from './date';
 import { getUploadCoverageDates } from './fileNameParser';
 import { uniqueVins } from './vin';
 
@@ -115,31 +117,42 @@ export function calculateStoreMetrics(params: {
   vehicleRows: VehicleRow[];
   bindings: BackendBinding[];
   detections: BackendDetection[];
+  metricsDateRange?: MetricsDateRange;
 }): StoreMetrics {
-  const { config, storeId, vehicleRows, bindings, detections } = params;
+  const {
+    config,
+    storeId,
+    vehicleRows,
+    bindings,
+    detections,
+    metricsDateRange,
+  } = params;
   const store = config.stores.find((item) => item.id === storeId);
   if (!store) {
     throw new Error(`unknown store: ${storeId}`);
   }
 
-  const inPeriod = (date: string) =>
-    dayjs(date).isAfter(dayjs(config.startDate).subtract(1, 'day')) &&
-    dayjs(date).isBefore(dayjs(config.endDate).add(1, 'day'));
+  const rangeStart = metricsDateRange?.startDate ?? config.startDate;
+  const rangeEnd = metricsDateRange?.endDate ?? config.endDate;
+  const inRange = (date: string) =>
+    isWithinCompetition(date, rangeStart, rangeEnd);
 
   const storeRows = vehicleRows.filter((row) => row.storeId === storeId);
   const newCarRows = storeRows.filter(
-    (row) => row.tableType === 'new_car' && inPeriod(row.businessDate),
+    (row) => row.tableType === 'new_car' && inRange(row.businessDate),
   );
   const entryRows = storeRows.filter(
-    (row) => row.tableType === 'entry_check' && inPeriod(row.businessDate),
+    (row) => row.tableType === 'entry_check' && inRange(row.businessDate),
   );
 
-  const newCarSales = uniqueVins(newCarRows.map((row) => row.vin)).length;
+  const newCarVins = uniqueVins(newCarRows.map((row) => row.vin));
+  const newCarSales = newCarVins.length;
+  const newCarVinSet = new Set(newCarVins);
   const entryVinSet = new Set(uniqueVins(entryRows.map((row) => row.vin)));
   const entryTotal = entryVinSet.size;
 
   const bindingMap = bindings
-    .filter((item) => item.storeId === storeId && inPeriod(item.bindDate))
+    .filter((item) => item.storeId === storeId && inRange(item.bindDate))
     .reduce((map, item) => {
       const prev = map.get(item.vin);
       if (!prev || dayjs(item.bindDate).isBefore(prev)) {
@@ -179,9 +192,15 @@ export function calculateStoreMetrics(params: {
     }
   });
 
+  // 综合渗透率分子：竞赛期内新增绑定 VIN，且落在该店新车 Excel 销量集合内
   const newBindings = uniqueVins(
     bindings
-      .filter((item) => item.storeId === storeId && inPeriod(item.bindDate))
+      .filter(
+        (item) =>
+          item.storeId === storeId &&
+          inRange(item.bindDate) &&
+          newCarVinSet.has(item.vin),
+      )
       .map((item) => item.vin),
   ).length;
 
@@ -191,7 +210,7 @@ export function calculateStoreMetrics(params: {
       .filter(
         (item) =>
           item.storeId === storeId &&
-          inPeriod(item.bindDate) &&
+          inRange(item.bindDate) &&
           entryVinSetForBind.has(item.vin),
       )
       .map((item) => item.vin),
@@ -204,7 +223,7 @@ export function calculateStoreMetrics(params: {
         (item) =>
           item.storeId === storeId &&
           item.hasPhoto &&
-          inPeriod(item.detectDate) &&
+          inRange(item.detectDate) &&
           entryVinSet.has(item.vin),
       )
       .map((item) => item.vin),
@@ -243,6 +262,7 @@ export function calculateAllMetrics(params: {
   vehicleRows: VehicleRow[];
   bindings: BackendBinding[];
   detections: BackendDetection[];
+  metricsDateRange?: MetricsDateRange;
 }): StoreMetrics[] {
   return params.config.stores
     .filter((store) => store.active)
@@ -253,6 +273,7 @@ export function calculateAllMetrics(params: {
         vehicleRows: params.vehicleRows,
         bindings: params.bindings,
         detections: params.detections,
+        metricsDateRange: params.metricsDateRange,
       }),
     );
 }

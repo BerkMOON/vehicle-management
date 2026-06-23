@@ -23,19 +23,12 @@ function PassTag({ passed }: { passed?: boolean }) {
 }
 
 const SUB_SCORE_ITEMS: {
-  key: keyof Pick<
-    MachineAuditResult,
-    'imu_score' | 'video_score' | 'audio_score'
-  >;
-  passKey: keyof Pick<
-    MachineAuditResult,
-    'imu_passed' | 'video_passed' | 'audio_passed'
-  >;
+  key: keyof Pick<MachineAuditResult, 'imu' | 'video' | 'audio'>;
   label: string;
 }[] = [
-  { key: 'imu_score', passKey: 'imu_passed', label: 'IMU' },
-  { key: 'video_score', passKey: 'video_passed', label: '视频' },
-  { key: 'audio_score', passKey: 'audio_passed', label: '音频' },
+  { key: 'imu', label: 'IMU' },
+  { key: 'video', label: '视频' },
+  { key: 'audio', label: '音频' },
 ];
 
 const MachineAuditResultDisplay: React.FC<MachineAuditResultDisplayProps> = ({
@@ -55,8 +48,8 @@ const MachineAuditResultDisplay: React.FC<MachineAuditResultDisplayProps> = ({
         <div style={{ marginTop: 4, color: '#666' }}>
           {SUB_SCORE_ITEMS.map((item) => (
             <span key={item.key} style={{ marginRight: 16 }}>
-              {item.label}：{formatScore(result[item.key])}{' '}
-              <PassTag passed={result[item.passKey]} />
+              {item.label}：{formatScore(result[item.key]?.score)}{' '}
+              <PassTag passed={result[item.key]?.passed} />
             </span>
           ))}
         </div>
@@ -71,8 +64,8 @@ const MachineAuditResultDisplay: React.FC<MachineAuditResultDisplayProps> = ({
       </Descriptions.Item>
       {SUB_SCORE_ITEMS.map((item) => (
         <Descriptions.Item key={item.key} label={`${item.label}评分`}>
-          {formatScore(result[item.key])}{' '}
-          <PassTag passed={result[item.passKey]} />
+          {formatScore(result[item.key]?.score)}{' '}
+          <PassTag passed={result[item.key]?.passed} />
         </Descriptions.Item>
       ))}
     </Descriptions>

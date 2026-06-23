@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { DEFAULT_COMPETITION_CONFIG } from '../constants';
-import { CompetitionConfig } from '../types';
+import { CompetitionConfig, MetricsDateRange } from '../types';
 
 dayjs.extend(customParseFormat);
 
@@ -148,4 +148,22 @@ export function isWithinCompetition(
 export function formatDateTime(value?: string): string {
   if (!value) return '-';
   return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
+}
+
+/** 默认指标范围：竞赛开始日 ~ min(今日, 竞赛结束日) */
+export function getDefaultMetricsDateRange(
+  config: Pick<CompetitionConfig, 'startDate' | 'endDate'>,
+): MetricsDateRange {
+  const today = dayjs().format('YYYY-MM-DD');
+  const end = dayjs(today).isAfter(config.endDate) ? config.endDate : today;
+  const safeEnd = dayjs(end).isBefore(config.startDate)
+    ? config.startDate
+    : end;
+  return { startDate: config.startDate, endDate: safeEnd };
+}
+
+export function getFullCompetitionDateRange(
+  config: Pick<CompetitionConfig, 'startDate' | 'endDate'>,
+): MetricsDateRange {
+  return { startDate: config.startDate, endDate: config.endDate };
 }

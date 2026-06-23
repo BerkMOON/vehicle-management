@@ -36,21 +36,20 @@ export interface AuditTaskDetail {
   ext_info2: string;
   gps: string;
   tag_list: string[];
-  machine_audit_result: {
-    overall_score: number;
-    sub_scores: {
-      code: string;
-      name: string;
-      score: number;
-      weight: number;
-    }[];
-    tags: {
-      code: string;
-      name: string;
-    }[];
-  };
+  machine_audit_result?: MachineAuditResult;
 }
 
+export interface MachineAuditResult {
+  overall_score: number;
+  imu: MachineAuditResultSubScore;
+  video: MachineAuditResultSubScore;
+  audio: MachineAuditResultSubScore;
+}
+
+export interface MachineAuditResultSubScore {
+  score: number;
+  passed: boolean;
+}
 export interface AuditTaskParams {
   task_id: number;
   audit_result: string; // 处理结果，通过：approved，拒绝：rejected
