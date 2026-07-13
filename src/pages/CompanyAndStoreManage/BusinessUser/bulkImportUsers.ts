@@ -1,4 +1,4 @@
-import { SuccessCode } from '@/constants';
+import { COMMON_STATUS, COMMON_STATUS_CODE, SuccessCode } from '@/constants';
 import { BusinessUserAPI } from '@/services/businessUser';
 import { BusinessUserRoleItem } from '@/services/businessUser/typings';
 import { CompanyAPI } from '@/services/company/CompanyController';
@@ -446,17 +446,20 @@ function getApiError(res: ResponseInfoType<unknown>): string {
   return res.response_status?.msg || `错误码 ${res.response_status?.code}`;
 }
 
-async function findUserWithRoles(
-  username: string,
-): Promise<{ userId: number } | null> {
+interface FoundUser {
+  userId: number;
+  statusCode?: number;
+}
+
+async function findUserByPhone(phone: string): Promise<FoundUser | null> {
   const res = await BusinessUserAPI.getAllBusinessUsers({
     page: 1,
     limit: 1,
-    username,
+    username: phone,
   });
   const user = res.data?.user_list?.[0];
   if (!user?.id) return null;
-  return { userId: Number(user.id) };
+  return { userId: Number(user.id), statusCode: user.status?.code };
 }
 
 function toRoleItems(user: AggregatedUser): BusinessUserRoleItem[] {
@@ -479,26 +482,47 @@ async function assignUserRoles(
   });
 }
 
+/** 已存在用户：生效则直接写角色；非生效则先恢复再写角色 */
+async function upsertRolesForExistingUser(
+  existingUser: FoundUser,
+  phone: string,
+  roleList: BusinessUserRoleItem[],
+): Promise<{ ok: true } | { ok: false; reason: string; detail?: string }> {
+  const isActive = existingUser.statusCode === COMMON_STATUS_CODE.ACTIVE;
+
+  if (!isActive) {
+    const restoreRes = await BusinessUserAPI.status({
+      user_id: existingUser.userId,
+      status: COMMON_STATUS.ACTIVE as unknown as number,
+    });
+    if (restoreRes.response_status?.code !== SuccessCode.SUCCESS) {
+      return {
+        ok: false,
+        reason: '恢复用户失败',
+        detail: getApiError(restoreRes),
+      };
+    }
+  }
+
+  const roleRes = await assignUserRoles(existingUser.userId, phone, roleList);
+  if (roleRes.response_status?.code !== SuccessCode.SUCCESS) {
+    return {
+      ok: false,
+      reason: '更新角色失败',
+      detail: getApiError(roleRes),
+    };
+  }
+  return { ok: true };
+}
+
 async function upsertUserRoles(
   user: AggregatedUser,
 ): Promise<{ ok: true } | { ok: false; reason: string; detail?: string }> {
   const roleList = toRoleItems(user);
-  const existingUser = await findUserWithRoles(user.phone);
+  const existingUser = await findUserByPhone(user.phone);
 
   if (existingUser) {
-    const roleRes = await assignUserRoles(
-      existingUser.userId,
-      user.phone,
-      roleList,
-    );
-    if (roleRes.response_status?.code !== SuccessCode.SUCCESS) {
-      return {
-        ok: false,
-        reason: '更新角色失败',
-        detail: getApiError(roleRes),
-      };
-    }
-    return { ok: true };
+    return upsertRolesForExistingUser(existingUser, user.phone, roleList);
   }
 
   const createRes = await BusinessUserAPI.create({
@@ -510,21 +534,9 @@ async function upsertUserRoles(
 
   if (createRes.response_status?.code !== SuccessCode.SUCCESS) {
     if (createRes.response_status?.code === EXISTED_BUSINESS_USERNAME) {
-      const retryUser = await findUserWithRoles(user.phone);
+      const retryUser = await findUserByPhone(user.phone);
       if (retryUser) {
-        const roleRes = await assignUserRoles(
-          retryUser.userId,
-          user.phone,
-          roleList,
-        );
-        if (roleRes.response_status?.code !== SuccessCode.SUCCESS) {
-          return {
-            ok: false,
-            reason: '更新角色失败',
-            detail: getApiError(roleRes),
-          };
-        }
-        return { ok: true };
+        return upsertRolesForExistingUser(retryUser, user.phone, roleList);
       }
     }
     return {
@@ -537,7 +549,7 @@ async function upsertUserRoles(
     };
   }
 
-  const createdUser = await findUserWithRoles(user.phone);
+  const createdUser = await findUserByPhone(user.phone);
   if (!createdUser?.userId) {
     return {
       ok: false,

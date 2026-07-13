@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../vehicle-store-weapp"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../../server/incident-detection-platform"
+		},
+		{
+			"path": "../vehicle-store-management"
+		}
+	],
+  "settings": {}
+}

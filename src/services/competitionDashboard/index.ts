@@ -3,6 +3,8 @@ import { ResponseInfoType } from '@/types/common';
 import { request } from '@umijs/max';
 import type {
   CompetitionAfterSalesRowList,
+  CompetitionClearRowsParams,
+  CompetitionClearRowsResult,
   CompetitionMetricsParams,
   CompetitionMetricsResult,
   CompetitionNewCarRowList,
@@ -70,11 +72,22 @@ export const CompetitionDashboardAPI = {
         params,
       },
     ),
+
+  clearRows: (data: CompetitionClearRowsParams) =>
+    request<ResponseInfoType<CompetitionClearRowsResult>>(
+      `${prefix}/rows/clear`,
+      {
+        method: 'POST',
+        data,
+      },
+    ),
 };
 
 export type {
   CompetitionAfterSalesRowItem,
   CompetitionAfterSalesRowList,
+  CompetitionClearRowsParams,
+  CompetitionClearRowsResult,
   CompetitionMetricsParams,
   CompetitionMetricsResult,
   CompetitionNewCarRowItem,

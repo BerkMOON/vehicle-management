@@ -8,13 +8,13 @@ import type {
   EntryCollisionReportListItem,
 } from '@/services/entryCheck/typings';
 import { Navigate, useAccess } from '@umijs/max';
-import { Alert, Descriptions, Drawer, Image, Spin, Tag, message } from 'antd';
+import { Descriptions, Drawer, Image, Result, Spin, Tag, message } from 'antd';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { getColumns } from './columns';
-import { searchForm } from './searchForm';
+import { getColumns } from '../../EquipmentManage/EntryCollisionReport/columns';
+import { searchForm } from '../../EquipmentManage/EntryCollisionReport/searchForm';
 
-const EntryCollisionReportList: React.FC = () => {
-  const { isLogin, equipmentManage } = useAccess();
+const LossClueList: React.FC = () => {
+  const { isLogin, reviewManage } = useAccess();
   const baseListRef = useRef<BaseListPageRef>(null);
 
   const [detailOpen, setDetailOpen] = useState(false);
@@ -103,28 +103,22 @@ const EntryCollisionReportList: React.FC = () => {
     return <Navigate to="/login" />;
   }
 
-  if (!equipmentManage) {
-    return (
-      <Alert
-        type="warning"
-        message="无设备管理权限，无法访问碰撞线索查询"
-        showIcon
-      />
-    );
+  if (!reviewManage) {
+    return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
   return (
     <>
       <BaseListPage
         ref={baseListRef}
-        title="碰撞线索查询"
+        title="丢失线索"
         columns={columns}
         searchFormItems={searchForm}
         fetchData={fetchData}
       />
 
       <Drawer
-        title="碰撞线索详情"
+        title="丢失线索详情"
         width={520}
         open={detailOpen}
         onClose={() => {
@@ -192,4 +186,4 @@ const EntryCollisionReportList: React.FC = () => {
   );
 };
 
-export default EntryCollisionReportList;
+export default LossClueList;

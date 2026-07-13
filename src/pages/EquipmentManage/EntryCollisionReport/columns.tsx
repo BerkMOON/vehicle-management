@@ -49,14 +49,14 @@ export function getColumns(options: {
       title: '事故照片',
       dataIndex: 'accident_photo_url',
       width: 88,
-      render: (url: string) =>
-        url ? (
+      render: (urls: string[]) =>
+        urls?.length ? (
           <Image
-            src={url}
+            src={urls[0]}
             width={48}
             height={48}
             style={{ objectFit: 'cover', borderRadius: 4 }}
-            preview={{ src: url }}
+            preview={{ src: urls[0] }}
           />
         ) : (
           '—'

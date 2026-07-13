@@ -304,7 +304,11 @@ const CompetitionDashboard: React.FC = () => {
           {
             key: 'rows',
             label: '行数据明细',
-            children: <RowDataPanel />,
+            children: (
+              <RowDataPanel
+                onDataChanged={() => setRefreshTick((v) => v + 1)}
+              />
+            ),
           },
           {
             key: 'upload',

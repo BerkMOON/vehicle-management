@@ -98,3 +98,18 @@ export interface CompetitionReturnStatusItem {
 export interface CompetitionReturnStatusResult {
   list: CompetitionReturnStatusItem[];
 }
+
+export interface CompetitionClearRowsParams {
+  store_id: number;
+  /** new_car | after_sales | all，默认 all */
+  table_type?: 'new_car' | 'after_sales' | 'all';
+  business_date?: string;
+  start_date?: string;
+  end_date?: string;
+  vin?: string;
+}
+
+export interface CompetitionClearRowsResult {
+  deleted_new_car_count: number;
+  deleted_after_sales_count: number;
+}

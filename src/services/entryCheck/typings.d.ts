@@ -17,7 +17,7 @@ export interface EntryCollisionReportListItem {
   accident_time: string;
   engineer_name: string;
   is_invalid_device: boolean;
-  accident_photo_url: string;
+  accident_photo_url: string[];
   ctime: string;
 }
 

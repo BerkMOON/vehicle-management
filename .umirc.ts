@@ -121,6 +121,12 @@ export default defineConfig({
           access: 'abnormalClueList',
         },
         {
+          path: '/review/lossClue',
+          name: '丢失线索',
+          component: './ReviewManage/LossClueList',
+          access: 'reviewManage',
+        },
+        {
           path: '/review/highTask',
           name: '高分线索列表',
           component: './ReviewManage/HighTask',
@@ -379,8 +385,8 @@ export default defineConfig({
   proxy: {
     '/api': {
       // 标识需要进行转换的请求的url
-      target: 'https://test.ai-kaka.com:443',
-      // target: 'https://eda.ai-kaka.com:443',
+      // target: 'https://test.ai-kaka.com:443',
+      target: 'https://eda.ai-kaka.com:443',
       // target: 'http://192.168.102.125:8888',
       changeOrigin: true, // 允许域名进行转换
     },
