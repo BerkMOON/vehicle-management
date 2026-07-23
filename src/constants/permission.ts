@@ -7,6 +7,8 @@ export enum PERMISSION_CODE {
   AUDIT_MODULE = 'audit_module',
   AUDIT_LIST = 'business_task_audit',
   AUDIT_BLACK_LIST = 'audit_blacklist',
+  NIGHT_AUDIT = 'night_audit',
+  NIGHT_AUDIT_CONFIG = 'night_audit_config',
   INCIDENT_AUDIT = 'incident_audit',
   TASK_MANAGER = 'task_manager',
   TASK_LIST = 'list_task',
@@ -29,6 +31,8 @@ export enum PERMISSION_CODE {
   BUSSINESS_DEVICE_MODULE = 'business_device_info_module',
   LOSS_REMINDER = 'loss_notification_module',
   MILEAGE_REMINDER = 'device_mileage_module',
+  ENTRY_COLLISION_REPORT_MODULE = 'entry_collision_report_module',
+  ENTRY_INSPECTION_LOG_MODULE = 'entry_inspection_log_module',
   UNUSED_DEVICE_MODULE = 'unused_device_module',
   OLD_DEVICE_MODULE = 'unused_device_module', // todo
   OTA_MODULE = 'ota_module',

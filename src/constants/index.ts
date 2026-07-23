@@ -31,7 +31,32 @@ export enum AUDIT_RESULT_CODE {
   APPROVED = 1,
   REJECTED = 2,
   UNDETERMINE = 4,
+  NIGHT_TASK = 5,
 }
+
+export enum OCCUR_TIME_TYPE {
+  WITHIN = 'within',
+  BEFORE = 'before',
+  AFTER = 'after',
+}
+
+export const OCCUR_TIME_TYPE_OPTIONS = [
+  { label: '时间段内', value: OCCUR_TIME_TYPE.WITHIN },
+  { label: '时间段前', value: OCCUR_TIME_TYPE.BEFORE },
+  { label: '时间段后', value: OCCUR_TIME_TYPE.AFTER },
+];
+
+export enum MACHINE_TYPE {
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  IMU = 'imu',
+}
+
+export const MACHINE_TYPE_OPTIONS = [
+  { label: '视频', value: MACHINE_TYPE.VIDEO },
+  { label: '音频', value: MACHINE_TYPE.AUDIO },
+  { label: 'IMU', value: MACHINE_TYPE.IMU },
+];
 
 export const DEVICE_STATUS = {
   NOT_UPGRADED: 0,

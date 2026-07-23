@@ -1,19 +1,15 @@
 import { useRequest } from '@/hooks/useRequest';
 import { AuditAPI } from '@/services/audit/AuditController';
+import { downloadVideoAsMp4, isMpegTsSource } from '@/utils/downloadVideo';
 import { parseVideoTime } from '@/utils/format';
+import { DownloadOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { Navigate, useAccess, useParams, useSearchParams } from '@umijs/max';
-import { Card, Descriptions, Result, Spin } from 'antd';
-import React from 'react';
+import { Button, Card, Descriptions, Result, Spin, message } from 'antd';
+import React, { useState } from 'react';
 import ReactPlayer from 'react-player';
 import MachineAuditResultDisplay from '../../Components/MachineAuditResultDisplay';
 import MpegTsVideoPlayer from '../../Components/MpegTsVideoPlayer';
-
-/** react-player 的 File 模式不识别 .ts；裸 TS 需 mpegts.js（MSE）播放 */
-const isMpegTsSource = (videoUrl: string, videoPath?: string) => {
-  const check = (s: string) => /\.ts($|\?|#)/i.test(s);
-  return check(videoUrl) || (!!videoPath && check(videoPath));
-};
 
 const TaskDetail: React.FC = () => {
   const { clueId } = useParams<{ clueId: string }>();
@@ -24,6 +20,7 @@ const TaskDetail: React.FC = () => {
   const isHighTask = searchParams.has('isHighTask');
   const { isLogin, taskDetail } = useAccess();
   const taskDetailAccess = taskDetail();
+  const [downloading, setDownloading] = useState(false);
 
   const { loading, data: detail } = useRequest(AuditAPI.getAuditTaskDetail, {
     immediate: true,
@@ -34,6 +31,33 @@ const TaskDetail: React.FC = () => {
       needMachineAuditResult: needAuditResult,
     },
   });
+
+  const handleDownloadVideo = async () => {
+    if (!detail?.video_url) {
+      message.warning('暂无可下载视频');
+      return;
+    }
+    setDownloading(true);
+    const hide = message.loading(
+      isMpegTsSource(detail.video_url, detail.video_path)
+        ? '正在转换 TS 为 MP4，请稍候…'
+        : '正在下载视频…',
+      0,
+    );
+    try {
+      await downloadVideoAsMp4({
+        videoUrl: detail.video_url,
+        videoPath: detail.video_path,
+        clueId: detail.clue_id,
+      });
+      message.success('下载成功');
+    } catch (error: any) {
+      message.error(error?.message || '下载失败');
+    } finally {
+      hide();
+      setDownloading(false);
+    }
+  };
 
   if (!isLogin) {
     return <Navigate to="/login" />;
@@ -52,7 +76,20 @@ const TaskDetail: React.FC = () => {
       <Spin spinning={loading}>
         <Card>
           {detail?.video_url && (
-            <Card title="视频内容" style={{ marginBottom: 24 }}>
+            <Card
+              title="视频内容"
+              style={{ marginBottom: 24 }}
+              extra={
+                <Button
+                  type="primary"
+                  icon={<DownloadOutlined />}
+                  loading={downloading}
+                  onClick={handleDownloadVideo}
+                >
+                  下载视频
+                </Button>
+              }
+            >
               {isMpegTsSource(detail.video_url, detail.video_path) ? (
                 <MpegTsVideoPlayer url={detail.video_url} />
               ) : (

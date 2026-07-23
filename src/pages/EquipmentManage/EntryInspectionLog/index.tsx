@@ -8,7 +8,8 @@ import { columns } from './columns';
 import { searchForm } from './searchForm';
 
 const EntryInspectionLogList: React.FC = () => {
-  const { isLogin, equipmentManage } = useAccess();
+  const { isLogin, entryInspectionLog } = useAccess();
+  const hasAccess = entryInspectionLog();
 
   const fetchData = async (params: Record<string, unknown>) => {
     const { page, limit, company_id, store_id, vin, record_date } = params;
@@ -40,13 +41,9 @@ const EntryInspectionLogList: React.FC = () => {
     return <Navigate to="/login" />;
   }
 
-  if (!equipmentManage) {
+  if (!hasAccess) {
     return (
-      <Alert
-        type="warning"
-        message="无设备管理权限，无法访问入场车架号留痕"
-        showIcon
-      />
+      <Alert type="warning" message="无入场车架号留痕权限，无法访问" showIcon />
     );
   }
 

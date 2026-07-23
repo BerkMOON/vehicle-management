@@ -1,13 +1,23 @@
 import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
+import { MACHINE_TYPE, MACHINE_TYPE_OPTIONS } from '@/constants';
 import { AuditAPI } from '@/services/audit/AuditController';
 import type { HighTaskItem, HighTaskParams } from '@/services/audit/typings';
 import { Navigate, useAccess } from '@umijs/max';
-import { Col, DatePicker, Form, Input, InputNumber, Result } from 'antd';
+import {
+  Col,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Result,
+  Select,
+} from 'antd';
 import React, { useRef } from 'react';
 
 const { RangePicker } = DatePicker;
+
 const TaskList: React.FC = () => {
   const { isLogin, taskList } = useAccess();
   const taskListAccess = taskList();
@@ -18,15 +28,24 @@ const TaskList: React.FC = () => {
       title: '线索ID',
       dataIndex: 'clue_id',
       key: 'clue_id',
-      render: (text: string, record: HighTaskItem) => (
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href={`/review/task/${record.clue_id}?isHighTask=true`}
-        >
-          {text}
-        </a>
-      ),
+      render: (text: string, record: HighTaskItem) =>
+        text ? (
+          <a
+            target="_blank"
+            rel="noopener noreferrer"
+            href={`/review/task/${record.clue_id}?isHighTask=true`}
+          >
+            {text}
+          </a>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: 'Audit ID',
+      dataIndex: 'audit_id',
+      key: 'audit_id',
+      render: (text?: string) => text || '-',
     },
     {
       title: '设备ID号',
@@ -46,7 +65,7 @@ const TaskList: React.FC = () => {
       render: (sub_scores: any) => {
         return (
           <ul>
-            {JSON.parse(sub_scores || '')?.map((item: any, index: number) => (
+            {JSON.parse(sub_scores || '[]')?.map((item: any, index: number) => (
               <li key={index}>
                 {item.name}: {(item.score / 100).toFixed(2)}
               </li>
@@ -62,7 +81,7 @@ const TaskList: React.FC = () => {
       render: (tag: any) => {
         return (
           <ul>
-            {JSON.parse(tag || '')?.map((item: any, index: number) => (
+            {JSON.parse(tag || '[]')?.map((item: any, index: number) => (
               <li key={index}>{item.name}</li>
             ))}
           </ul>
@@ -83,6 +102,19 @@ const TaskList: React.FC = () => {
 
   const searchFormItems = (
     <>
+      <Col>
+        <Form.Item
+          name="machine_type"
+          label="机审类型"
+          rules={[{ required: true, message: '请选择机审类型' }]}
+        >
+          <Select
+            options={MACHINE_TYPE_OPTIONS}
+            placeholder="请选择机审类型"
+            style={{ width: 160 }}
+          />
+        </Form.Item>
+      </Col>
       <Col>
         <Form.Item name="device_id" label="设备ID">
           <Input placeholder="请输入设备ID" allowClear />
@@ -151,6 +183,9 @@ const TaskList: React.FC = () => {
       searchFormItems={searchFormItems}
       fetchData={fetchTaskData}
       searchParamsTransform={searchParamsTransform}
+      defaultSearchParams={{
+        machine_type: MACHINE_TYPE.VIDEO,
+      }}
     />
   );
 };

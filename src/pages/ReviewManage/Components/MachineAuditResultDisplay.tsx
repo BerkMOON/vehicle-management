@@ -59,9 +59,6 @@ const MachineAuditResultDisplay: React.FC<MachineAuditResultDisplayProps> = ({
 
   return (
     <Descriptions column={2}>
-      <Descriptions.Item label="综合评分">
-        {formatScore(result.overall_score)}（0 ~ 100分）
-      </Descriptions.Item>
       {SUB_SCORE_ITEMS.map((item) => (
         <Descriptions.Item key={item.key} label={`${item.label}评分`}>
           {formatScore(result[item.key]?.score)}{' '}

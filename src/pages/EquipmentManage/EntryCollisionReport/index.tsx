@@ -14,7 +14,8 @@ import { getColumns } from './columns';
 import { searchForm } from './searchForm';
 
 const EntryCollisionReportList: React.FC = () => {
-  const { isLogin, equipmentManage } = useAccess();
+  const { isLogin, entryCollisionReport } = useAccess();
+  const hasAccess = entryCollisionReport();
   const baseListRef = useRef<BaseListPageRef>(null);
 
   const [detailOpen, setDetailOpen] = useState(false);
@@ -103,11 +104,11 @@ const EntryCollisionReportList: React.FC = () => {
     return <Navigate to="/login" />;
   }
 
-  if (!equipmentManage) {
+  if (!hasAccess) {
     return (
       <Alert
         type="warning"
-        message="无设备管理权限，无法访问碰撞线索查询"
+        message="无碰撞线索权限，无法访问碰撞线索查询"
         showIcon
       />
     );

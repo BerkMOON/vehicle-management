@@ -145,6 +145,25 @@ export default defineConfig({
           component: './ReviewManage/BlackList',
           access: 'auditBlackList',
         },
+        {
+          path: '/review/night-audit',
+          name: '夜间审核配置',
+          component: './ReviewManage/NightAudit',
+          access: 'nightAudit',
+        },
+        {
+          path: '/review/night-audit-task',
+          name: '夜间审核任务列表',
+          component: './ReviewManage/NightAuditTask',
+          access: 'taskList',
+        },
+        {
+          path: '/review/night-audit-task/:clueId',
+          name: '夜间审核任务详情',
+          component: './ReviewManage/NightAuditTask/Detail',
+          access: 'taskDetail',
+          hideInMenu: true,
+        },
       ],
     },
     {
@@ -251,13 +270,13 @@ export default defineConfig({
           path: '/equipment/entry-collision',
           name: '碰撞线索查询',
           component: './EquipmentManage/EntryCollisionReport',
-          access: 'equipmentManage',
+          access: 'entryCollisionReport',
         },
         {
           path: '/equipment/entry-inspection-log',
           name: '入场车架号留痕',
           component: './EquipmentManage/EntryInspectionLog',
-          access: 'equipmentManage',
+          access: 'entryInspectionLog',
         },
       ],
     },
@@ -379,14 +398,15 @@ export default defineConfig({
       path: '/accident-loss',
       name: '事故丢失处理',
       component: './AccidentLoss',
+      access: 'warehouseModule',
     },
   ],
   npmClient: 'pnpm',
   proxy: {
     '/api': {
       // 标识需要进行转换的请求的url
-      // target: 'https://test.ai-kaka.com:443',
-      target: 'https://eda.ai-kaka.com:443',
+      target: 'https://test.ai-kaka.com:443',
+      // target: 'https://eda.ai-kaka.com:443',
       // target: 'http://192.168.102.125:8888',
       changeOrigin: true, // 允许域名进行转换
     },

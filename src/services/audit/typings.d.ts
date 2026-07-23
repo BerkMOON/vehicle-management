@@ -57,7 +57,15 @@ export interface AuditTaskParams {
   level: string;
   note: string;
   tag_id_list: number[];
+  /** 仅 approved 时必传：within / before / after */
+  occur_time_type?: OccurTimeType;
+  /** 仅 approved + within 时必传，格式 YYYY-MM-DD HH:mm:ss */
+  occur_time?: string;
 }
+
+export type OccurTimeType = 'within' | 'before' | 'after';
+
+export type MachineType = 'video' | 'audio' | 'imu';
 
 export interface AuditTagItem {
   tag_id: number;
@@ -183,6 +191,8 @@ export interface HighTaskList extends BaseListInfo {
   result_list: HighTaskItem[];
 }
 export interface HighTaskParams extends PageInfoParams {
+  /** 机审类型，必填 */
+  machine_type: MachineType;
   device_id?: string;
   end_time?: string;
   /**
