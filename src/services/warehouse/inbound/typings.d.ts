@@ -20,6 +20,8 @@ export interface InboundRecordItem {
   receivable_quantity: number;
   received_quantity: number;
   device_type: string;
+  /** 设备型号字符串，旧批次可能为 "" */
+  model?: string;
   status: {
     code: INBOUND_STATUS_CODE;
     name: string;
@@ -37,6 +39,8 @@ export interface InboundRecordParams extends PageInfoParams {
   start_time?: string;
   end_time?: string;
   status?: INBOUND_STATUS;
+  model?: string;
+  device_type?: number | string;
 }
 
 export enum INBOUND_STATUS {
@@ -55,6 +59,8 @@ export interface InboundCreateRequest {
   excel_file_path: string;
   extra: string;
   receivable_quantity: number;
+  device_type: number;
+  model: string;
 }
 
 export interface InboundCreateStageRequest {
@@ -63,21 +69,23 @@ export interface InboundCreateStageRequest {
   device_model?: string;
   icc_id: string;
   scan_date?: string;
-  sn: string;
-  // SG30-EDA 非云卡
-  // SG30K-EDA 云卡
+  /** 海振必填；汇影可空（服务端生成 HY+device_id） */
+  sn?: string;
+  /** 必须与入库批次 model 一致 */
   model: string;
 }
 
-/** SG30-EDA 非云卡；SG30K-EDA 云卡 */
+/** @deprecated 批次已自带 model，录入时请用批次 model */
 export const INBOUND_DEVICE_MODEL = {
   NON_CLOUD: 'SG30-EDA',
   CLOUD: 'SG30K-EDA',
+  HUIYING: 'HY10-EDA',
 } as const;
 
 export const INBOUND_DEVICE_MODEL_OPTIONS = [
   { label: 'SG30-EDA（非云卡）', value: INBOUND_DEVICE_MODEL.NON_CLOUD },
   { label: 'SG30K-EDA（云卡）', value: INBOUND_DEVICE_MODEL.CLOUD },
+  { label: 'HY10-EDA（汇影）', value: INBOUND_DEVICE_MODEL.HUIYING },
 ];
 
 export interface TableItem {

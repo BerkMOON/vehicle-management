@@ -1,6 +1,7 @@
 import CompanySelect from '@/components/BusinessComponents/CompanySelect';
 import StoreSelect from '@/components/BusinessComponents/StoreSelect';
-import { Col, DatePicker, Form, Input } from 'antd';
+import { ReturnProcessStatus } from '@/services/warehouse/storage/typings.d';
+import { Col, DatePicker, Form, Input, Select } from 'antd';
 
 const { RangePicker } = DatePicker;
 
@@ -14,6 +15,21 @@ export const searchForm = (
     <Col>
       <Form.Item name="sn" label="SN码">
         <Input placeholder="请输入SN码" />
+      </Form.Item>
+    </Col>
+    <Col>
+      <Form.Item name="process_status" label="处理状态">
+        <Select
+          style={{ width: '160px' }}
+          placeholder="请选择处理状态"
+          allowClear
+          options={[
+            { label: '待处理', value: ReturnProcessStatus.PENDING },
+            { label: '已退厂', value: ReturnProcessStatus.TO_VENDOR },
+            { label: '已重新入库', value: ReturnProcessStatus.RE_INBOUND },
+            { label: '历史单', value: ReturnProcessStatus.HISTORICAL },
+          ]}
+        />
       </Form.Item>
     </Col>
     <Col>

@@ -14,9 +14,15 @@ import {
   Result,
   Select,
 } from 'antd';
+import dayjs from 'dayjs';
 import React, { useRef } from 'react';
 
 const { RangePicker } = DatePicker;
+
+const DEFAULT_TIME_RANGE = [
+  dayjs().subtract(7, 'day').startOf('day'),
+  dayjs().endOf('day'),
+];
 
 const TaskList: React.FC = () => {
   const { isLogin, taskList } = useAccess();
@@ -141,8 +147,12 @@ const TaskList: React.FC = () => {
         </Form.Item>
       </Col>
       <Col>
-        <Form.Item name="timeRange" label="工单时间">
-          <RangePicker style={{ width: '400px' }} showTime />
+        <Form.Item
+          name="timeRange"
+          label="工单时间"
+          rules={[{ required: true, message: '请选择工单时间' }]}
+        >
+          <RangePicker style={{ width: '400px' }} showTime allowClear={false} />
         </Form.Item>
       </Col>
     </>
@@ -159,8 +169,18 @@ const TaskList: React.FC = () => {
     };
   };
 
-  const fetchTaskData = async (params: HighTaskParams) => {
-    const { data } = await AuditAPI.listMachineResult(params);
+  const fetchTaskData = async (
+    params: HighTaskParams & { timeRange?: [dayjs.Dayjs, dayjs.Dayjs] },
+  ) => {
+    const { timeRange, ...rest } = params;
+    const requestParams: HighTaskParams = {
+      ...rest,
+      start_time:
+        rest.start_time || timeRange?.[0]?.format?.('YYYY-MM-DD HH:mm:ss'),
+      end_time:
+        rest.end_time || timeRange?.[1]?.format?.('YYYY-MM-DD HH:mm:ss'),
+    };
+    const { data } = await AuditAPI.listMachineResult(requestParams);
     return {
       list: data.result_list,
       total: data.meta.total_count,
@@ -185,6 +205,7 @@ const TaskList: React.FC = () => {
       searchParamsTransform={searchParamsTransform}
       defaultSearchParams={{
         machine_type: MACHINE_TYPE.VIDEO,
+        timeRange: DEFAULT_TIME_RANGE,
       }}
     />
   );

@@ -47,8 +47,9 @@ const InboundDetail: React.FC = () => {
     },
     {
       title: '设备型号',
-      dataIndex: 'device_model',
-      key: 'device_model',
+      dataIndex: 'model',
+      key: 'model',
+      render: (text: string, row: any) => text || row.device_model || '-',
     },
     {
       title: '设备类型',
@@ -109,6 +110,9 @@ const InboundDetail: React.FC = () => {
         <Descriptions column={4}>
           <Descriptions.Item label="批次ID">{record?.id}</Descriptions.Item>
           <Descriptions.Item label="批次名称">{record?.name}</Descriptions.Item>
+          <Descriptions.Item label="设备型号">
+            {record?.model || '-'}
+          </Descriptions.Item>
           <Descriptions.Item label="设备类型">
             {record?.device_type}
           </Descriptions.Item>

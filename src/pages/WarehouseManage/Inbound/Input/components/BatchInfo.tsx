@@ -1,5 +1,6 @@
 import type { InboundRecordItem } from '@/services/warehouse/inbound/typings';
 import { Card, Descriptions } from 'antd';
+import { formatModelName } from '../../../Components/DeviceModelSelect';
 
 interface BatchInfoProps {
   record: InboundRecordItem | null;
@@ -29,6 +30,9 @@ export const BatchInfo: React.FC<BatchInfoProps> = ({
         </Descriptions.Item>
         <Descriptions.Item label="入库人">
           {record?.creator_name}
+        </Descriptions.Item>
+        <Descriptions.Item label="设备型号">
+          {formatModelName(record?.model) || record?.model || '-'}
         </Descriptions.Item>
         <Descriptions.Item label="设备类型">
           {record?.device_type}

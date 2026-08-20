@@ -49,6 +49,11 @@ const InboundSelector: React.FC<InboundSelectorProps> = ({
       key: 'name',
     },
     {
+      title: '设备型号',
+      dataIndex: 'model',
+      key: 'model',
+    },
+    {
       title: '设备类型',
       dataIndex: 'device_type',
       key: 'device_type',

@@ -1,19 +1,26 @@
 import audioUrl from '@/assets/audio/tips.mp3';
 import { SuccessCode } from '@/constants';
 import { InboundAPI } from '@/services/warehouse/inbound/InboundController';
-import {
-  INBOUND_DEVICE_MODEL,
-  type InboundRecordItem,
-  type TableItem,
+import type {
+  InboundRecordItem,
+  TableItem,
 } from '@/services/warehouse/inbound/typings.d';
 import { OssAPI } from '@/services/warehouse/oss/OSSController';
 import { OssSence } from '@/services/warehouse/oss/typings.d';
+import { isHuiyingModel } from '@/services/warehouse/storage/typings.d';
 import { fetchAllPaginatedData } from '@/utils/request';
 import { ExclamationCircleFilled } from '@ant-design/icons';
 import { Button, Descriptions, message, Modal } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { parseExcelData } from '../utils/excelParser';
+
+/** 判断暂存区记录是否命中某行（汇影空 SN 时服务端生成 HY+device_id） */
+const isStagedMatch = (item: TableItem, stagedList: string[]) => {
+  if (item.sn && stagedList.includes(item.sn)) return true;
+  if (item.imei && stagedList.includes(`HY${item.imei}`)) return true;
+  return false;
+};
 
 export const useInboundInput = () => {
   const [record, setRecord] = useState<InboundRecordItem | null>(null);
@@ -25,20 +32,17 @@ export const useInboundInput = () => {
   const [exporting, setExporting] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [scanValue, setScanValue] = useState('');
-  const [deviceModel, setDeviceModel] = useState<string>(
-    INBOUND_DEVICE_MODEL.NON_CLOUD,
-  );
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [tableLoading, setTableLoading] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 在组件初始化时加载音频
   useEffect(() => {
-    // 创建音频元素
     audioRef.current = new Audio(audioUrl);
     audioRef.current.load();
   }, []);
+
+  const batchModel = record?.model || '';
 
   const showConfirm = (recordList: string[], id: string) => {
     return new Promise((resolve) => {
@@ -50,7 +54,7 @@ export const useInboundInput = () => {
           setTableData((prevData) =>
             prevData.map((item) => ({
               ...item,
-              isChecked: recordList.includes(item.sn),
+              isChecked: isStagedMatch(item, recordList),
             })),
           );
           resolve(true);
@@ -64,15 +68,25 @@ export const useInboundInput = () => {
   };
 
   const recordDevice = async (stageRecord: TableItem) => {
+    if (!batchModel) {
+      message.error('批次缺少设备型号，无法录入');
+      return false;
+    }
     try {
+      const sn = stageRecord.sn?.trim() || '';
+      // 汇影允许空 SN；海振必须有 SN
+      if (!isHuiyingModel(batchModel) && !sn) {
+        message.error('请扫描设备 SN 码');
+        return false;
+      }
       const res = await InboundAPI.createStagingRecord({
         batch_id: Number(record?.id),
-        sn: stageRecord.sn,
+        sn: sn || undefined,
         icc_id: stageRecord.iccid,
         device_id: stageRecord.imei,
         device_model: stageRecord.device_model,
         scan_date: stageRecord.scan_date,
-        model: deviceModel,
+        model: batchModel,
       });
       if (res.response_status.code !== SuccessCode.SUCCESS) {
         message.error(res.response_status.msg);
@@ -86,13 +100,13 @@ export const useInboundInput = () => {
     }
   };
 
-  const handleCheck = async (record: TableItem) => {
-    const success = await recordDevice(record);
+  const handleCheck = async (row: TableItem) => {
+    const success = await recordDevice(row);
     if (success) {
       setTableData((prevData) =>
         prevData.map((item) =>
-          item.key === record.key
-            ? { ...item, isChecked: true, model: deviceModel }
+          item.key === row.key
+            ? { ...item, isChecked: true, model: batchModel }
             : item,
         ),
       );
@@ -100,7 +114,6 @@ export const useInboundInput = () => {
   };
 
   const handleExport = async () => {
-    // 创建导出数据
     setExporting(true);
     const exportData = tableData.map((item) => ({
       SN码: item.sn,
@@ -108,29 +121,25 @@ export const useInboundInput = () => {
       ICCID号: item.iccid,
       扫码日期: item.scan_date,
       设备型号: item.device_model,
-      产品型号: item.model ?? deviceModel,
+      产品型号: item.model ?? batchModel,
       所属客户: item.customer,
       是否已录入: item.isChecked ? '是' : '否',
     }));
 
-    // 生成 Excel 文件
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
 
-    // 将 Excel 转换为 blob
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
 
     try {
-      // 获取 OSS 上传地址
       const {
         data: { policy, signature, ossAccessKeyId, host, dir },
       } = await OssAPI.getOSSConfig(OssSence.Result);
 
-      // 构建 FormData
       const formData = new FormData();
       formData.append('policy', policy);
       formData.append('signature', signature);
@@ -142,22 +151,18 @@ export const useInboundInput = () => {
       formData.append('key', key);
       formData.append('file', blob, fileName);
 
-      // 上传到 OSS
       await fetch(host, {
         method: 'POST',
         body: formData,
       });
 
       message.success('文件已导出并上传成功');
-
-      // 同时下载到本地
       XLSX.writeFile(wb, `${record?.name}.xlsx`);
 
       setExportUrl(key);
       setExporting(false);
     } catch (error) {
       message.error('文件上传失败');
-      // 如果上传失败，仍然保存到本地
       XLSX.writeFile(wb, `${record?.name}.xlsx`);
       setExporting(false);
     }
@@ -241,14 +246,29 @@ export const useInboundInput = () => {
     });
   };
 
+  const findUncheckedRow = (formatValue: string) => {
+    const bySn = tableData.findIndex(
+      (item) => item.sn === formatValue && !item.isChecked,
+    );
+    if (bySn !== -1) return bySn;
+
+    // 汇影：可用 IMEI 匹配（Excel SN 可为空）
+    if (isHuiyingModel(batchModel)) {
+      return tableData.findIndex(
+        (item) =>
+          !item.isChecked &&
+          item.imei &&
+          item.imei.toUpperCase() === formatValue,
+      );
+    }
+    return -1;
+  };
+
   const handleScan = async (value: string) => {
     if (!value.trim()) return;
 
     const formatValue = value.trim().toUpperCase();
-
-    const foundIndex = tableData.findIndex(
-      (item) => item.sn === formatValue && !item.isChecked,
-    );
+    const foundIndex = findUncheckedRow(formatValue);
 
     if (foundIndex !== -1) {
       await handleCheck(tableData[foundIndex]);
@@ -256,7 +276,9 @@ export const useInboundInput = () => {
       audioRef.current?.play();
       Modal.warning({
         title: '未找到匹配的未确认商品',
-        content: '请确认输入的SN码是否正确，或者excel中是否存在该商品',
+        content: isHuiyingModel(batchModel)
+          ? '请确认输入的 SN / IMEI 是否正确，或者 excel 中是否存在该商品'
+          : '请确认输入的SN码是否正确，或者excel中是否存在该商品',
       });
     }
 
@@ -280,7 +302,6 @@ export const useInboundInput = () => {
         }
       }
 
-      // 使用通用方法获取所有分页数据
       const allRecords: string[] = await fetchAllPaginatedData(
         InboundAPI.getStagingRecord,
         { batch_id: Number(id) },
@@ -296,7 +317,7 @@ export const useInboundInput = () => {
           setTableData((prevData) =>
             prevData.map((item) => ({
               ...item,
-              isChecked: allRecords.includes(item.sn),
+              isChecked: isStagedMatch(item, allRecords),
             })),
           );
         }
@@ -336,11 +357,9 @@ export const useInboundInput = () => {
     exporting,
     clearing,
     scanValue,
-    deviceModel,
     exportUrl,
     tableLoading,
     setScanValue,
-    setDeviceModel,
     handleCheck,
     handleScan,
     handleExport,

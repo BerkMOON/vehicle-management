@@ -1,7 +1,9 @@
 import { WarehouseUpload } from '@/pages/WarehouseManage/Components/WarehouseUpload';
 import { OssSence } from '@/services/warehouse/oss/typings.d';
 import { Form, FormInstance, Input, InputNumber } from 'antd';
+import { useWatch } from 'antd/es/form/Form';
 import DeviceTypeSelect from '../Components/DeivceTypeSelect';
+import DeviceModelSelect from '../Components/DeviceModelSelect';
 
 interface InboundFormProps {
   form: FormInstance;
@@ -12,8 +14,9 @@ export const InboundForm: React.FC<InboundFormProps> = ({
   form,
   isEdit = false,
 }) => {
+  const model = useWatch('model', form);
+
   const handleFileUpload = (fileInfo: { path: string }) => {
-    // 设置多个表单字段的值
     form.setFieldsValue({
       excel_file_path: fileInfo.path,
     });
@@ -40,18 +43,32 @@ export const InboundForm: React.FC<InboundFormProps> = ({
         />
       </Form.Item>
       {!isEdit && (
-        <Form.Item
-          name="device_type"
-          label="设备类型"
-          rules={[
-            {
-              required: true,
-              message: '请选择设备类型',
-            },
-          ]}
-        >
-          <DeviceTypeSelect style={{ width: '100%' }} />
-        </Form.Item>
+        <>
+          <Form.Item
+            name="model"
+            label="设备型号"
+            rules={[{ required: true, message: '请选择设备型号' }]}
+          >
+            <DeviceModelSelect
+              style={{ width: '100%' }}
+              allowClear={false}
+              onChange={(value) => {
+                form.setFieldsValue({
+                  model: value,
+                  device_type: undefined,
+                });
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="device_type"
+            label="设备类型"
+            rules={[{ required: true, message: '请选择设备类型' }]}
+            dependencies={['model']}
+          >
+            <DeviceTypeSelect model={model} style={{ width: '100%' }} />
+          </Form.Item>
+        </>
       )}
       <Form.Item
         label="入库文件"
@@ -71,7 +88,6 @@ export const InboundForm: React.FC<InboundFormProps> = ({
       <Form.Item name="extra" label="备注">
         <Input.TextArea placeholder="请输入备注" allowClear />
       </Form.Item>
-      {/* 隐藏的表单项，用于存储文件名 */}
       <Form.Item name="excel_file_path" hidden>
         <Input />
       </Form.Item>

@@ -56,11 +56,14 @@ const StorageDetail: React.FC = () => {
           <Descriptions.Item label="ICCID号">
             {detail?.icc_id}
           </Descriptions.Item>
+          <Descriptions.Item label="设备型号">
+            {detail?.model || '-'}
+          </Descriptions.Item>
           <Descriptions.Item label="设备类型">
             {detail?.device_type}
           </Descriptions.Item>
           <Descriptions.Item label="入库时间">
-            {detail?.create_time}
+            {detail?.inbound_time || detail?.create_time}
           </Descriptions.Item>
           <Descriptions.Item label="入库批次">
             {detail?.inbound_batch_id ? (

@@ -45,7 +45,12 @@ export const useOutboundInput = () => {
         sn: stageRecord.sn,
       });
       if (res.response_status.code !== SuccessCode.SUCCESS) {
-        message.error(res.response_status.msg);
+        // 1000004：含已退货设备，提示覆盖「不在库/已出库/已退货」
+        const msg =
+          res.response_status.code === 1000004
+            ? res.response_status.msg || '设备不在库中、已出库或已退货'
+            : res.response_status.msg;
+        message.error(msg);
         return false;
       }
       setTableData((prevData) => [...prevData, stageRecord]);

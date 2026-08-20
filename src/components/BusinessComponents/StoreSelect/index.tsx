@@ -4,6 +4,8 @@ import { StoreItem } from '@/services/store/typing';
 import { DefaultOptionType } from 'antd/es/select';
 import React, { useEffect, useRef } from 'react';
 
+const ALL_STORES_VALUE = ':storeId';
+
 interface StoreSelectProps {
   value?: string | number;
   onChange?: (value: string | number, option?: DefaultOptionType) => void;
@@ -12,6 +14,8 @@ interface StoreSelectProps {
   companyId?: string;
   edit?: boolean;
   style?: React.CSSProperties;
+  /** 是否在列表首项展示「全部门店」，默认不展示 */
+  includeAllStores?: boolean;
 }
 
 const StoreSelect: React.FC<StoreSelectProps> = ({
@@ -21,6 +25,7 @@ const StoreSelect: React.FC<StoreSelectProps> = ({
   companyId = '',
   disabled = false,
   style,
+  includeAllStores = false,
 }) => {
   const ref = useRef<any>(null);
   const [key, setKey] = React.useState(0);
@@ -37,15 +42,14 @@ const StoreSelect: React.FC<StoreSelectProps> = ({
       company_id: companyId,
     });
 
-    // 在第一页添加"全部门店"选项
-    const list =
-      page === 1
-        ? [{ id: ':storeId', name: '全部门店' }, ...data.store_list]
-        : data.store_list;
+    const allStoresOption =
+      includeAllStores && page === 1
+        ? [{ id: ALL_STORES_VALUE, name: '全部门店' }]
+        : [];
 
     return {
-      list,
-      total: data.meta.total_count + (page === 1 ? 1 : 0),
+      list: [...allStoresOption, ...data.store_list],
+      total: data.meta.total_count + allStoresOption.length,
     };
   };
 
@@ -61,9 +65,9 @@ const StoreSelect: React.FC<StoreSelectProps> = ({
     }
   }, [companyId]);
 
-  // 当 value 是 ':storeId' 时显示"全部门店"
-  const displayValue = value === ':storeId' ? '全部门店' : value;
-  const displayPlaceholder = value === ':storeId' ? '全部门店' : placeholder;
+  const isAllStoresValue = includeAllStores && value === ALL_STORES_VALUE;
+  const displayValue = isAllStoresValue ? '全部门店' : value;
+  const displayPlaceholder = isAllStoresValue ? '全部门店' : placeholder;
 
   return (
     <InfiniteSelect

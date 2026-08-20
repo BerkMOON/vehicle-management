@@ -22,6 +22,8 @@ export interface OutboundRecordItem {
   company_id: string;
   company_name: string;
   device_type: string;
+  /** 设备型号字符串，旧批次可能为 "" */
+  model?: string;
   status: {
     code: OUTBOUND_STATUS_CODE;
     name: string;
@@ -41,6 +43,8 @@ export interface OutboundRecordParams extends PageInfoParams {
   status?: INBOUND_STATUS;
   store_id?: string;
   company_id?: string;
+  model?: string;
+  device_type?: number | string;
 }
 
 export enum INBOUND_STATUS {
@@ -58,9 +62,13 @@ export enum OUTBOUND_STATUS_CODE {
 
 export interface OutboundCreateRequest {
   name: string;
-  excel_file_path: string;
+  excel_file_path?: string;
   extra: string;
-  receivable_quantity: number;
+  receivable_quantity?: number;
+  device_type: number;
+  model: string;
+  company_id?: string | number;
+  store_id?: string | number;
 }
 
 export interface OutboundCreateStageRequest {

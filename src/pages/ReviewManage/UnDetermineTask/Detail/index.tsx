@@ -75,7 +75,7 @@ const TaskDetail: React.FC = () => {
                   justifyContent: 'center',
                 }}
               >
-                <ReactPlayer url={detail.video_url} controls playbackRate={2} />
+                <ReactPlayer url={detail.video_url} controls />
                 <div style={{ marginTop: 12 }}>
                   触发时间点：{parseVideoTime(detail?.video_path)}
                 </div>

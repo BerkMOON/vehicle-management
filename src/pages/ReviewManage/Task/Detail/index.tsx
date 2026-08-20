@@ -17,7 +17,6 @@ const TaskDetail: React.FC = () => {
   const needAuditResult = searchParams.has('needAuditResult')
     ? searchParams.get('needAuditResult') === 'true'
     : true; // 默认true
-  const isHighTask = searchParams.has('isHighTask');
   const { isLogin, taskDetail } = useAccess();
   const taskDetailAccess = taskDetail();
   const [downloading, setDownloading] = useState(false);
@@ -93,11 +92,7 @@ const TaskDetail: React.FC = () => {
               {isMpegTsSource(detail.video_url, detail.video_path) ? (
                 <MpegTsVideoPlayer url={detail.video_url} />
               ) : (
-                <ReactPlayer
-                  url={detail.video_url}
-                  controls
-                  playbackRate={isHighTask ? 1.25 : 2}
-                />
+                <ReactPlayer url={detail.video_url} controls />
               )}
               <Descriptions style={{ marginTop: 8 }} column={2}>
                 <Descriptions.Item label="触发时间点">

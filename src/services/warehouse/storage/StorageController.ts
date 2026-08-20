@@ -1,6 +1,7 @@
 import { ResponseInfoType } from '@/types/common';
 import { request } from '@umijs/max';
 import type {
+  DeviceModelResponse,
   DeviceTypeResponse,
   ReturnListResponse,
   ReturnParams,
@@ -11,11 +12,9 @@ import type {
 const API_PREFIX = '/api/admin/warehouse';
 
 export const StorageAPI = {
-  /** 
+  /**
   正式入库列表
   GET /api/admin/warehouse/formal/list
-  接口ID：286146659
-  接口地址：https://app.apifox.com/link/project/5084807/apis/api-286146659
   */
   getStorageList: (params: StorageParams) =>
     request<ResponseInfoType<StorageListResponse>>(
@@ -26,11 +25,9 @@ export const StorageAPI = {
       },
     ),
 
-  /** 
+  /**
   退货设备列表
   GET /api/admin/warehouse/return/list
-  接口ID：344351165
-  接口地址：https://app.apifox.com/link/project/5084807/apis/api-344351165
   */
   getReturnList: (params: ReturnParams) =>
     request<ResponseInfoType<ReturnListResponse>>(`${API_PREFIX}/return/list`, {
@@ -41,26 +38,52 @@ export const StorageAPI = {
   /**
    * 退货设备提交
    * POST /api/admin/warehouse/return/commit
-   * 接口ID：344348395
-   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-344348395
    */
-  createReturnRecord: (data: any) =>
+  createReturnRecord: (data: { sn: string; remark: string }) =>
     request<ResponseInfoType<any>>(`${API_PREFIX}/return/commit`, {
       method: 'POST',
       data,
     }),
 
   /**
-   * 获取设备类型
-   * GET /api/admin/warehouse/getDeviceTypes
-   * 接口ID：353750849
-   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-353750849
+   * 退还给厂家
+   * POST /api/admin/warehouse/return/toVendor
    */
-  getDeviceTypes: () =>
+  returnToVendor: (data: { id: number }) =>
+    request<ResponseInfoType<null>>(`${API_PREFIX}/return/toVendor`, {
+      method: 'POST',
+      data,
+    }),
+
+  /**
+   * 重新入库
+   * POST /api/admin/warehouse/return/reInbound
+   */
+  returnReInbound: (data: { id: number }) =>
+    request<ResponseInfoType<null>>(`${API_PREFIX}/return/reInbound`, {
+      method: 'POST',
+      data,
+    }),
+
+  /**
+   * 获取设备型号列表
+   * GET /api/admin/warehouse/getModels
+   */
+  getModels: () =>
+    request<ResponseInfoType<DeviceModelResponse>>(`${API_PREFIX}/getModels`, {
+      method: 'GET',
+    }),
+
+  /**
+   * 获取设备类型
+   * GET /api/admin/warehouse/getDeviceTypes?model=xxx
+   */
+  getDeviceTypes: (params: { model: string }) =>
     request<ResponseInfoType<DeviceTypeResponse>>(
       `${API_PREFIX}/getDeviceTypes`,
       {
         method: 'GET',
+        params,
       },
     ),
 };

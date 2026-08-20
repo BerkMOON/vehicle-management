@@ -1,8 +1,8 @@
-import { INBOUND_DEVICE_MODEL_OPTIONS } from '@/services/warehouse/inbound/typings.d';
+import { isHuiyingModel } from '@/services/warehouse/storage/typings.d';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams } from '@umijs/max';
-import { Button, Card, Descriptions, Input, Select, Space, Table } from 'antd';
+import { Button, Card, Descriptions, Input, Space, Table } from 'antd';
 import React, { useEffect, useMemo } from 'react';
 import { BatchInfo } from './components/BatchInfo';
 import { useInboundInput } from './hooks/useInboundInput';
@@ -23,19 +23,16 @@ const ProductInput: React.FC = () => {
     clearing,
     tableLoading,
     scanValue,
-    deviceModel,
     exportUrl,
     columns,
     handleClear,
     setScanValue,
-    setDeviceModel,
     handleScan,
     handleExport,
     handleSubmit,
     fetchRecord,
   } = useInboundInput();
 
-  // 分离未录入和已录入的数据
   const unrecordedData = tableData
     .filter((item) => !item.isChecked)
     .map((item) => ({
@@ -52,7 +49,7 @@ const ProductInput: React.FC = () => {
       dataIndex: 'model',
       key: 'model',
       width: 150,
-      render: (text: string) => text || '-',
+      render: (text: string) => text || record?.model || '-',
     };
     if (statusIndex === -1) {
       return [...columns, modelColumn];
@@ -62,13 +59,22 @@ const ProductInput: React.FC = () => {
       modelColumn,
       ...columns.slice(statusIndex),
     ];
-  }, [columns]);
+  }, [columns, record?.model]);
 
   useEffect(() => {
-    // 获取入库记录详情
     if (!id) return;
     fetchRecord(id);
   }, [id]);
+
+  const scanPlaceholder = (() => {
+    if (duplicateSNs.length > 0) {
+      return '有重复SN码，请检查上传的Excel表格';
+    }
+    if (isHuiyingModel(record?.model)) {
+      return '请扫描 SN 或 IMEI；汇影设备 SN 可为空，服务端将自动生成';
+    }
+    return '请将扫描枪对准商品条码进行扫描，扫描后会自动确认对应商品';
+  })();
 
   return (
     <PageContainer
@@ -110,31 +116,18 @@ const ProductInput: React.FC = () => {
         </Descriptions>
       </Card>
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Space align="start">
-          <Select
-            value={deviceModel}
-            onChange={setDeviceModel}
-            options={INBOUND_DEVICE_MODEL_OPTIONS}
-            disabled={duplicateSNs.length > 0}
-            style={{ width: 200 }}
-          />
-          <Input.TextArea
-            value={scanValue}
-            onChange={(e) => setScanValue(e.target.value)}
-            disabled={duplicateSNs.length > 0}
-            onPressEnter={(e) => {
-              e.preventDefault();
-              handleScan(scanValue);
-            }}
-            placeholder={
-              duplicateSNs.length > 0
-                ? '有重复SN码，请检查上传的Excel表格'
-                : '请将扫描枪对准商品条码进行扫描，扫描后会自动确认对应商品'
-            }
-            autoFocus
-            style={{ width: '300px' }}
-          />
-        </Space>
+        <Input.TextArea
+          value={scanValue}
+          onChange={(e) => setScanValue(e.target.value)}
+          disabled={duplicateSNs.length > 0}
+          onPressEnter={(e) => {
+            e.preventDefault();
+            handleScan(scanValue);
+          }}
+          placeholder={scanPlaceholder}
+          autoFocus
+          style={{ width: '400px' }}
+        />
 
         <div>
           <Button type="primary" onClick={handleExport} loading={exporting}>
@@ -155,7 +148,11 @@ const ProductInput: React.FC = () => {
             style={{ width: '49%' }}
             extra={
               <Input.Search
-                placeholder="输入SN码搜索"
+                placeholder={
+                  isHuiyingModel(record?.model)
+                    ? '输入 SN / IMEI 搜索'
+                    : '输入SN码搜索'
+                }
                 style={{ width: 200 }}
                 allowClear
                 onSearch={(value) => {
@@ -164,7 +161,9 @@ const ProductInput: React.FC = () => {
                     .filter(
                       (item) =>
                         !item.isChecked &&
-                        item.sn.toUpperCase().includes(searchValue),
+                        (item.sn.toUpperCase().includes(searchValue) ||
+                          (isHuiyingModel(record?.model) &&
+                            item.imei?.toUpperCase().includes(searchValue))),
                     )
                     .map((item) => ({
                       ...item,

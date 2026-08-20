@@ -5,6 +5,7 @@ import type { FormInstance } from 'antd/es/form';
 import { useWatch } from 'antd/es/form/Form';
 import React from 'react';
 import DeviceTypeSelect from '../Components/DeivceTypeSelect';
+import DeviceModelSelect from '../Components/DeviceModelSelect';
 
 interface OutboundFormProps {
   form: FormInstance;
@@ -16,6 +17,7 @@ export const OutboundForm: React.FC<OutboundFormProps> = ({
   isEdit = false,
 }) => {
   const companyId = useWatch('company_id', form);
+  const model = useWatch('model', form);
 
   return (
     <>
@@ -27,18 +29,32 @@ export const OutboundForm: React.FC<OutboundFormProps> = ({
         <Input placeholder="请输入批次名称" />
       </Form.Item>
       {!isEdit && (
-        <Form.Item
-          name="device_type"
-          label="设备类型"
-          rules={[
-            {
-              required: true,
-              message: '请选择设备类型',
-            },
-          ]}
-        >
-          <DeviceTypeSelect style={{ width: '100%' }} />
-        </Form.Item>
+        <>
+          <Form.Item
+            name="model"
+            label="设备型号"
+            rules={[{ required: true, message: '请选择设备型号' }]}
+          >
+            <DeviceModelSelect
+              style={{ width: '100%' }}
+              allowClear={false}
+              onChange={(value) => {
+                form.setFieldsValue({
+                  model: value,
+                  device_type: undefined,
+                });
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="device_type"
+            label="设备类型"
+            rules={[{ required: true, message: '请选择设备类型' }]}
+            dependencies={['model']}
+          >
+            <DeviceTypeSelect model={model} style={{ width: '100%' }} />
+          </Form.Item>
+        </>
       )}
       <Form.Item
         name="company_id"
@@ -48,7 +64,6 @@ export const OutboundForm: React.FC<OutboundFormProps> = ({
         <CompanySelect
           placeholder="请选择公司"
           onChange={() => {
-            // 当公司变化时，清空门店选择
             form.setFieldValue('store_id', undefined);
           }}
         />
