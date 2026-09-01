@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import {
   DEFAULT_COMPETITION_CONFIG,
   MAX_PARSE_ERROR_ROWS,
@@ -93,9 +94,14 @@ export function isCompetitionStorageReady(): boolean {
 
 /** 合并 localStorage 中的用户配置与代码内最新的门店名单/别名 */
 function mergeCompetitionConfig(saved: CompetitionConfig): CompetitionConfig {
+  const today = dayjs().format('YYYY-MM-DD');
+  // 结束日至少覆盖到今天，避免本地旧配置卡在历史截止日期（如 7-31）
+  const mergedEnd = saved.endDate ?? DEFAULT_COMPETITION_CONFIG.endDate;
+  const endDate = dayjs(mergedEnd).isBefore(today, 'day') ? today : mergedEnd;
+
   return {
     startDate: saved.startDate ?? DEFAULT_COMPETITION_CONFIG.startDate,
-    endDate: saved.endDate ?? DEFAULT_COMPETITION_CONFIG.endDate,
+    endDate,
     targets: saved.targets ?? DEFAULT_COMPETITION_CONFIG.targets,
     autoRefreshMinutes:
       saved.autoRefreshMinutes ?? DEFAULT_COMPETITION_CONFIG.autoRefreshMinutes,
@@ -105,8 +111,14 @@ function mergeCompetitionConfig(saved: CompetitionConfig): CompetitionConfig {
 
 export function getConfig(): CompetitionConfig {
   const saved = readJson<CompetitionConfig | null>(STORAGE_KEYS.config, null);
-  if (!saved) return DEFAULT_COMPETITION_CONFIG;
-  return mergeCompetitionConfig(saved);
+  const base = saved
+    ? mergeCompetitionConfig(saved)
+    : DEFAULT_COMPETITION_CONFIG;
+  const today = dayjs().format('YYYY-MM-DD');
+  if (dayjs(base.endDate).isBefore(today, 'day')) {
+    return { ...base, endDate: today };
+  }
+  return base;
 }
 
 export function saveConfig(config: CompetitionConfig) {

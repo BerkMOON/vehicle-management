@@ -322,6 +322,24 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
       );
       return !!otaModule;
     },
+    // 查看定向升级配置
+    otaDirectionalGetConfig: () => {
+      const otaModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.OTA_MODULE,
+      );
+      return !!otaModule?.endpoints?.find(
+        (child) => child.code === PERMISSION_CODE.OTA_DIRECTIONAL_GET_CONFIG,
+      );
+    },
+    // 保存定向升级配置
+    otaDirectionalSetConfig: () => {
+      const otaModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.OTA_MODULE,
+      );
+      return !!otaModule?.endpoints?.find(
+        (child) => child.code === PERMISSION_CODE.OTA_DIRECTIONAL_SET_CONFIG,
+      );
+    },
     warehouseModule: () => {
       return !!initialState?.authority?.find(
         (authority) => authority.code === PERMISSION_CODE.WAREHOUSE_MODULE,

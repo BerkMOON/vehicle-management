@@ -1,15 +1,9 @@
-import { STATUS_OPTIONS } from '@/constants';
 import DeviceModelSelect from '@/pages/WarehouseManage/Components/DeviceModelSelect';
 import { UPGRADE_MOUDULE_LABEL } from '@/services/ota/typings.d';
-import { Col, Form, Input, Select } from 'antd';
+import { Col, Form, Select } from 'antd';
 
 export const searchForm = (
   <>
-    <Col>
-      <Form.Item label="版本号" name="version">
-        <Input placeholder="请输入版本号" />
-      </Form.Item>
-    </Col>
     <Col>
       <Form.Item label="设备型号" name="model">
         <DeviceModelSelect
@@ -25,16 +19,6 @@ export const searchForm = (
           placeholder="请选择模块类型"
           allowClear
           options={UPGRADE_MOUDULE_LABEL}
-        />
-      </Form.Item>
-    </Col>
-    <Col>
-      <Form.Item label="状态" name="status">
-        <Select
-          style={{ width: '194px' }}
-          placeholder="请选择状态"
-          allowClear
-          options={STATUS_OPTIONS}
         />
       </Form.Item>
     </Col>

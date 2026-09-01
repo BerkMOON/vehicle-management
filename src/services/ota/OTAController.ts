@@ -1,6 +1,8 @@
 import { ResponseInfoType } from '@/types/common';
 import { request } from '@umijs/max';
 import {
+  DirectionalOtaConfig,
+  DirectionalSetConfigParams,
   OssConfig,
   OtaCreateParams,
   OtaDeleteParams,
@@ -17,8 +19,6 @@ export const OtaAPI = {
   /**
    * ota记录列表
    * GET /api/admin/ota/record/getAllOTARecords
-   * 接口ID：262550661
-   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-262550661
    */
   getOtaUpdataList: (params?: OtaParams) =>
     request<ResponseInfoType<OtaList>>(
@@ -30,10 +30,8 @@ export const OtaAPI = {
     ),
 
   /**
-   *ota记录状态修改
-   *POST /api/admin/ota/record/status
-   *接口ID：262534710
-   *接口地址：https://app.apifox.com/link/project/5084807/apis/api-262534710
+   * ota记录状态修改
+   * POST /api/admin/ota/record/status
    */
   deleteVersion: (params: OtaDeleteParams) =>
     request<ResponseInfoType<null>>(`${API_PREFIX}/record/status`, {
@@ -42,10 +40,8 @@ export const OtaAPI = {
     }),
 
   /**
-   * ota信息更新
+   * ota信息更新（全量灰度）
    * POST /api/admin/ota/record/update
-   * 接口ID：262535994
-   *  接口地址：https://app.apifox.com/link/project/5084807/apis/api-262535994
    */
   updateOtaStatus: (params: OtaUpdateParams) =>
     request<ResponseInfoType<null>>(`${API_PREFIX}/record/update`, {
@@ -54,10 +50,8 @@ export const OtaAPI = {
     }),
 
   /**
-   * 新建ota版本
+   * 新建ota版本（仅全量灰度 upgrade_type=1）
    * POST /api/admin/ota/record/create
-   * 接口ID：262533510
-   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-262533510
    */
   createOtaUpdate: (params: OtaCreateParams) =>
     request<ResponseInfoType<null>>(`${API_PREFIX}/record/create`, {
@@ -68,8 +62,6 @@ export const OtaAPI = {
   /**
    * 灰度发布
    * POST /api/admin/ota/record/OTARelease
-   * 接口ID：262551217
-   * 接口地址：https://app.apifox.com/link/project/5084807/apis/api-262551217
    */
   otaRelease: (params: OtaReleaseParams) =>
     request<ResponseInfoType<null>>(`${API_PREFIX}/record/OTARelease`, {
@@ -82,4 +74,29 @@ export const OtaAPI = {
       method: 'GET',
       params,
     }),
+
+  /**
+   * 查看定向升级配置
+   * GET /api/admin/ota/directional/getConfig
+   */
+  getDirectionalConfig: () =>
+    request<ResponseInfoType<DirectionalOtaConfig>>(
+      `${API_PREFIX}/directional/getConfig`,
+      {
+        method: 'GET',
+      },
+    ),
+
+  /**
+   * 保存定向升级配置（整份覆盖）
+   * POST /api/admin/ota/directional/setConfig
+   */
+  setDirectionalConfig: (data: DirectionalSetConfigParams) =>
+    request<ResponseInfoType<DirectionalOtaConfig>>(
+      `${API_PREFIX}/directional/setConfig`,
+      {
+        method: 'POST',
+        data,
+      },
+    ),
 };

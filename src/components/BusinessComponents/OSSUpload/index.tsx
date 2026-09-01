@@ -70,7 +70,7 @@ export const AliyunOSSUpload = ({
       const md5 = await calculateMD5(file.originFileObj as File);
       onUploadSuccess?.({
         path: `${OSSData?.dir}${file.url}`,
-        name: file.url as string,
+        name: file.originFileObj?.name || (file.url as string),
         md5: md5,
       });
     }

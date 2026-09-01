@@ -1,5 +1,5 @@
 import { ModalControl } from '@/hooks/useModalControl';
-import { UPGRADE_TYPE, type OtaItem } from '@/services/ota/typings.d';
+import type { OtaItem } from '@/services/ota/typings.d';
 import { ColumnsProps } from '@/types/common';
 import { Divider } from 'antd';
 
@@ -26,32 +26,12 @@ export const getColumns = (props: ColumnsProps<OtaItem>) => {
       title: '灰度比例',
       dataIndex: 'release_range',
       key: 'release_range',
-      render: (release_range: number, record: OtaItem) => {
-        return record.upgrade_type.code === UPGRADE_TYPE.FULL_GRAY
-          ? `${release_range}%`
-          : '-';
-      },
+      render: (release_range: number) => `${release_range}%`,
     },
     {
       title: '升级类型',
       dataIndex: ['upgrade_type', 'name'],
       key: 'upgrade_type',
-    },
-    {
-      title: '指定设备Id',
-      dataIndex: 'rule',
-      key: 'rule',
-      render: (rule: string) => {
-        if (!rule || rule === 'null') return '无';
-        const items = rule.replace(/[[\]"]/g, '').split(',');
-        return (
-          <div>
-            {items.map((item, index) => (
-              <div key={index}>{item}</div>
-            ))}
-          </div>
-        );
-      },
     },
     {
       title: '上传者',
@@ -91,22 +71,16 @@ export const getColumns = (props: ColumnsProps<OtaItem>) => {
     {
       title: '操作',
       key: 'action',
-      fixed: 'right', // 添加此行，固定在右侧
-      width: 240, // 添加固定宽度
+      fixed: 'right',
+      width: 240,
       render: (_: any, record: OtaItem) => (
         <>
-          {record.upgrade_type.code === UPGRADE_TYPE.FULL_GRAY ? (
-            <>
-              <a
-                onClick={() =>
-                  handleModalOpen(customModal as ModalControl, record)
-                }
-              >
-                灰度发布
-              </a>
-              <Divider type="vertical" />
-            </>
-          ) : null}
+          <a
+            onClick={() => handleModalOpen(customModal as ModalControl, record)}
+          >
+            灰度发布
+          </a>
+          <Divider type="vertical" />
           <a onClick={() => handleModalOpen(createOrModifyModal, record)}>
             更新Ota信息
           </a>

@@ -36,6 +36,9 @@ export enum PERMISSION_CODE {
   UNUSED_DEVICE_MODULE = 'unused_device_module',
   OLD_DEVICE_MODULE = 'unused_device_module', // todo
   OTA_MODULE = 'ota_module',
+  OTA_DIRECTIONAL_GET_CONFIG = 'ota_directional_get_config',
+  OTA_DIRECTIONAL_SET_CONFIG = 'ota_directional_set_config',
+  OTA_FILE_UPLOAD = 'ota_file_upload',
   WAREHOUSE_MODULE = 'warehouse_module',
   WAREHOUSE_INBOUND_MODULE = 'warehouse_inbound_module',
   WAREHOUSE_OUTBOUND_MODULE = 'warehouse_outbound_module',

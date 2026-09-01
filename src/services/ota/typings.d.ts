@@ -13,7 +13,6 @@ export enum OtaType {
 
 export const UPGRADE_TYPE_LABEL = [
   { label: '全量灰度', value: UPGRADE_TYPE.FULL_GRAY },
-  { label: '定向设备', value: UPGRADE_TYPE.TARGETED },
 ];
 
 export const UPGRADE_MOUDULE_LABEL = [
@@ -22,7 +21,7 @@ export const UPGRADE_MOUDULE_LABEL = [
     value: OtaType.Firmware,
   },
   {
-    label: '算法',
+    label: '碰撞算法',
     value: OtaType.Algorithm,
   },
 ];
@@ -61,6 +60,7 @@ export interface OtaParams {
   version?: string;
   status?: COMMON_STATUS; // 状态，生效：active，删除：deleted
   upgrade_type?: UPGRADE_TYPE; // 升级类型，1：全量灰度，2：定向设备
+  module_type?: OtaType;
 }
 
 export interface OssConfig {
@@ -71,21 +71,22 @@ export interface OssConfig {
   dir: string;
 }
 
+/** 全量灰度创建：仅 upgrade_type=1，不再传 device_ids */
 export interface OtaCreateParams {
-  model: string; // 型号
+  model: string;
   filename: string;
   path: string;
   md5: string;
-  upgrade_type: UPGRADE_TYPE; // 升级类型，1：全量灰度，2：定向设备
-  rule: string; // 规则
-  release_range: number; // 灰度比例
-  device_ids: string[];
-  ext: string;
+  upgrade_type: UPGRADE_TYPE.FULL_GRAY;
+  module_type: OtaType;
+  version?: string;
+  release_range?: number;
+  ext?: string;
 }
 
+/** 全量灰度更新：已去掉 device_ids */
 export interface OtaUpdateParams {
   record_id: number;
-  device_ids: string[];
   ext: string;
 }
 
@@ -101,4 +102,38 @@ export interface OtaReleaseParams {
 
 export interface OtaUploadParams {
   module_type: OtaType;
+}
+
+/** 定向升级单条规则 */
+export interface DirectionalOtaItem {
+  id?: string;
+  model: string;
+  module_type: OtaType;
+  version?: string;
+  filename: string;
+  path: string;
+  md5: string;
+  device_ids: string[];
+  ext?: string;
+}
+
+export interface DirectionalOtaConfig {
+  handler_id: number;
+  handler_name: string;
+  modify_time: string;
+  items: DirectionalOtaItem[];
+}
+
+export interface DirectionalSetConfigParams {
+  allow_empty?: boolean;
+  expected_modify_time: string;
+  items: DirectionalOtaItem[];
+}
+
+/** 定向保存相关错误码 */
+export enum DIRECTIONAL_ERROR_CODE {
+  EMPTY_WITHOUT_ALLOW = 800004,
+  OVER_LIMIT = 800005,
+  CONFLICT = 800006,
+  INVALID_ITEM = 100001,
 }

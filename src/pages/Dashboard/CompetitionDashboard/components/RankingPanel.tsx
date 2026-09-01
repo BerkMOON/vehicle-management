@@ -222,9 +222,16 @@ const RankingPanel: React.FC<RankingPanelProps> = ({
           ]}
           disabledDate={(current) => {
             if (!current) return false;
+            const today = dayjs().endOf('day');
+            const start = dayjs(competitionStartDate).startOf('day');
+            // 可选区间：竞赛开始日 ~ 当天（含今天）；不晚于竞赛配置结束日
+            const end = dayjs(
+              dayjs(competitionEndDate).isAfter(today, 'day')
+                ? today
+                : competitionEndDate,
+            ).endOf('day');
             return (
-              current.isBefore(dayjs(competitionStartDate), 'day') ||
-              current.isAfter(dayjs(competitionEndDate), 'day')
+              current.isBefore(start, 'day') || current.isAfter(end, 'day')
             );
           }}
           onChange={(dates) => {

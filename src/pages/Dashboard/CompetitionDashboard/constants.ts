@@ -102,7 +102,7 @@ export const STORE_FILE_ALIASES: Record<string, string[]> = {
 
 export const DEFAULT_COMPETITION_CONFIG: CompetitionConfig = {
   startDate: '2026-06-01',
-  endDate: '2026-07-31',
+  endDate: '2026-08-31',
   targets: {
     comprehensive: 0.65,
     inspectionCoverage: 0.9,

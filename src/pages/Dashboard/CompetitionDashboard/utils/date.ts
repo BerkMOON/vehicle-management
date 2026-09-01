@@ -165,5 +165,9 @@ export function getDefaultMetricsDateRange(
 export function getFullCompetitionDateRange(
   config: Pick<CompetitionConfig, 'startDate' | 'endDate'>,
 ): MetricsDateRange {
-  return { startDate: config.startDate, endDate: config.endDate };
+  const today = dayjs().format('YYYY-MM-DD');
+  const end = dayjs(config.endDate).isAfter(today, 'day')
+    ? today
+    : config.endDate;
+  return { startDate: config.startDate, endDate: end };
 }

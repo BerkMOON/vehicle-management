@@ -1,20 +1,14 @@
 import { AliyunOSSUpload } from '@/components/BusinessComponents/OSSUpload';
-import {
-  OtaType,
-  UPGRADE_TYPE,
-  UPGRADE_TYPE_LABEL,
-} from '@/services/ota/typings.d';
-import { Checkbox, Form, FormInstance, Input, Radio, Slider } from 'antd';
+import DeviceModelSelect from '@/pages/WarehouseManage/Components/DeviceModelSelect';
+import { OtaType } from '@/services/ota/typings.d';
+import { Checkbox, Form, FormInstance, Input, Radio } from 'antd';
 import { useWatch } from 'antd/es/form/Form';
-import { useState } from 'react';
 
 interface OtaFormProps {
   form: FormInstance;
 }
 
 export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
-  const [upgradeType, setUpgradeType] = useState<UPGRADE_TYPE>();
-
   const moduleType = useWatch('module_type', form);
   const customVersion = useWatch('custom_version', form);
 
@@ -23,7 +17,6 @@ export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
     name: string;
     md5: string;
   }) => {
-    // 设置多个表单字段的值
     form.setFieldsValue({
       path: fileInfo.path,
       filename: fileInfo.name,
@@ -34,7 +27,6 @@ export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
   const validDate = (value: string) => {
     if (!value) return Promise.resolve();
 
-    // 检查长度是否为12位
     if (value.length !== 12) {
       return Promise.reject('版本号必须是12位数字');
     }
@@ -45,17 +37,14 @@ export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
     const hour = parseInt(value.substring(8, 10));
     const minute = parseInt(value.substring(10, 12));
 
-    // 检查是否都是数字
     if (!/^\d+$/.test(value)) {
       return Promise.reject('版本号必须全部为数字');
     }
 
-    // 验证月份
     if (month < 1 || month > 12) {
       return Promise.reject('月份必须在1-12之间');
     }
 
-    // 验证小时和分钟
     if (hour < 0 || hour > 23) {
       return Promise.reject('小时必须在0-23之间');
     }
@@ -63,7 +52,6 @@ export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
       return Promise.reject('分钟必须在0-59之间');
     }
 
-    // 验证日期是否有效
     const date = new Date(year, month - 1, day);
     if (date.getMonth() + 1 !== month) {
       return Promise.reject('无效的日期');
@@ -125,17 +113,12 @@ export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
         ></AliyunOSSUpload>
       </Form.Item>
 
-      {/* 隐藏的表单项，用于存储文件名 */}
       <Form.Item name="path" hidden>
         <Input />
       </Form.Item>
-
-      {/* 隐藏的表单项，用于存储文件名 */}
       <Form.Item name="filename" hidden>
         <Input />
       </Form.Item>
-
-      {/* 隐藏的表单项，用于存储 MD5 */}
       <Form.Item name="md5" hidden>
         <Input />
       </Form.Item>
@@ -143,42 +126,14 @@ export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
       <Form.Item
         label="设备型号"
         name="model"
-        rules={[{ required: true, message: '请输入设备型号' }]}
+        rules={[{ required: true, message: '请选择设备型号' }]}
       >
-        <Input placeholder="请输入设备型号" />
+        <DeviceModelSelect
+          style={{ width: '100%' }}
+          allowClear={false}
+          placeholder="请选择设备型号"
+        />
       </Form.Item>
-
-      <Form.Item
-        label="发布方式"
-        name="upgrade_type"
-        rules={[{ required: true, message: '请选择发布方式' }]}
-      >
-        <Radio.Group onChange={(e) => setUpgradeType(e.target.value)}>
-          {UPGRADE_TYPE_LABEL.map((item) => (
-            <Radio key={item.value} value={item.value}>
-              {item.label}
-            </Radio>
-          ))}
-        </Radio.Group>
-      </Form.Item>
-
-      {upgradeType === UPGRADE_TYPE.TARGETED && (
-        <>
-          <Form.Item
-            label="定向设备"
-            name="device_ids"
-            rules={[{ required: false }]}
-            extra="指定需要升级的设备"
-          >
-            <Input.TextArea
-              placeholder="请输入设备ID，多个设备用英文逗号分隔，例如：device1,device2"
-              style={{ width: '100%' }}
-              rows={4}
-              autoSize={{ minRows: 2, maxRows: 6 }}
-            />
-          </Form.Item>
-        </>
-      )}
 
       <Form.Item label="版本描述" name="ext">
         <Input.TextArea rows={4} placeholder="请输入版本描述" />
@@ -187,56 +142,12 @@ export const OtaForm: React.FC<OtaFormProps> = ({ form }) => {
   );
 };
 
-export const OtaUpdataForm = (props: { isTargeted: boolean }) => {
-  const { isTargeted } = props;
-
+export const OtaUpdataForm = () => {
   return (
-    <>
-      <Form.Item label="版本描述" name="ext">
-        <Input.TextArea rows={4} placeholder="请输入版本描述" />
-      </Form.Item>
-      {isTargeted ? (
-        <>
-          <Form.Item
-            label="定向设备"
-            name="device_ids"
-            rules={[{ required: false }]}
-            extra="指定需要升级的设备"
-          >
-            <Input.TextArea
-              placeholder="请输入设备ID，多个设备用英文逗号分隔，例如：device1,device2"
-              style={{ width: '100%' }}
-              rows={4}
-              autoSize={{ minRows: 2, maxRows: 6 }}
-            />
-          </Form.Item>
-        </>
-      ) : null}
-    </>
+    <Form.Item label="版本描述" name="ext">
+      <Input.TextArea rows={4} placeholder="请输入版本描述" />
+    </Form.Item>
   );
 };
 
-export const OtaPublishForm = (
-  <>
-    <Form.Item
-      label="灰度比例"
-      name="release_range"
-      rules={[{ required: true, message: '请选择灰度比例' }]}
-    >
-      <Slider
-        min={0}
-        max={100}
-        marks={{
-          0: '0%',
-          25: '25%',
-          50: '50%',
-          75: '75%',
-          100: '100%',
-        }}
-        tooltip={{
-          formatter: (value) => `${value}%`,
-        }}
-      />
-    </Form.Item>
-  </>
-);
+export { OtaPublishForm } from './publishForm';
