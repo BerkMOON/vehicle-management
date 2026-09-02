@@ -400,6 +400,51 @@ export default defineConfig({
       component: './AccidentLoss',
       access: 'warehouseModule',
     },
+    {
+      name: '会员管理',
+      path: '/membership',
+      access: 'membershipManage',
+      hideInBreadcrumb: true,
+      lazy: true,
+      routes: [
+        {
+          path: '/membership/config',
+          name: '商品配置',
+          component: './MembershipManage/Config',
+          access: 'membershipManage',
+        },
+        {
+          path: '/membership/users',
+          name: '用户会员',
+          component: './MembershipManage/UserQuery',
+          access: 'membershipManage',
+        },
+        {
+          path: '/membership/orders',
+          name: '业务单 MEM',
+          component: './MembershipManage/Orders',
+          access: 'membershipManage',
+        },
+        {
+          path: '/membership/payments',
+          name: '支付单 PAY',
+          component: './MembershipManage/Payments',
+          access: 'membershipManage',
+        },
+        {
+          path: '/membership/refunds',
+          name: '退款管理',
+          component: './MembershipManage/Refunds',
+          access: 'membershipManage',
+        },
+        {
+          path: '/membership/ops',
+          name: '运维监控',
+          component: './MembershipManage/Ops',
+          access: 'membershipManage',
+        },
+      ],
+    },
   ],
   npmClient: 'pnpm',
   proxy: {

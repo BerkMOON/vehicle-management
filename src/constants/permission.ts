@@ -45,4 +45,5 @@ export enum PERMISSION_CODE {
   WAREHOUSE_STORAGE_MODULE = 'warehouse_storage_module',
   WAREHOUSE_RETURN_MODULE = 'warehouse_return_module',
   SELECT_DEVICE_VERSION_MODULE = 'select_device_version_module',
+  MEMBERSHIP_MODULE = 'membership_module',
 }

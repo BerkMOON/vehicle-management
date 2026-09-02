@@ -373,5 +373,13 @@ export default (initialState: UserSelfInfo & { isLogin: boolean }) => {
           authority.code === PERMISSION_CODE.WAREHOUSE_RETURN_MODULE,
       );
     },
+    // 会员/支付管理（后端权限模块配置前，登录用户可访问）
+    membershipManage: () => {
+      const membershipModule = initialState?.authority?.find(
+        (authority) => authority.code === PERMISSION_CODE.MEMBERSHIP_MODULE,
+      );
+      if (membershipModule) return true;
+      return !!initialState?.isLogin;
+    },
   };
 };
