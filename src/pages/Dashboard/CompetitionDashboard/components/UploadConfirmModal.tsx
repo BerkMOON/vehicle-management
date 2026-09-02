@@ -27,17 +27,29 @@ const UploadConfirmModal: React.FC<UploadConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  const config = CompetitionDashboardService.getConfig();
+  // getConfig() 每次调用都可能返回新对象，不能直接放进 effect 依赖
+  const config = useMemo(() => CompetitionDashboardService.getConfig(), [open]);
   const [storeLinks, setStoreLinks] = useState<BackendStoreLink[]>([]);
   const [previews, setPreviews] = useState<Record<string, DraftParsePreview>>(
     {},
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setStoreLinks([]);
+      return;
+    }
+    let cancelled = false;
     fetchBackendStoreLinks(config)
-      .then(setStoreLinks)
-      .catch(() => setStoreLinks([]));
+      .then((links) => {
+        if (!cancelled) setStoreLinks(links);
+      })
+      .catch(() => {
+        if (!cancelled) setStoreLinks([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, config]);
 
   const linkMap = useMemo(
@@ -66,6 +78,7 @@ const UploadConfirmModal: React.FC<UploadConfirmModalProps> = ({
     drafts.forEach((draft) => {
       if (!draft.storeId || !draft.tableType) {
         setPreviews((prev) => {
+          if (!(draft.id in prev)) return prev;
           const next = { ...prev };
           delete next[draft.id];
           return next;
@@ -159,6 +172,7 @@ const UploadConfirmModal: React.FC<UploadConfirmModalProps> = ({
     return () => {
       cancelled = true;
     };
+    // drafts 的实质变化已体现在 previewKey；config 在弹窗打开期间保持引用稳定
   }, [open, previewKey, config, linkMap]);
 
   const storeOptions = useMemo(
