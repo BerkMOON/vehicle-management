@@ -5,20 +5,19 @@ export const PRODUCT_STATUS: Record<number, string> = {
 };
 
 export const PAY_STATUS: Record<number, string> = {
-  1: '已创建',
-  2: '待支付',
-  3: '成功',
-  4: '失败',
-  6: '关闭',
-  7: '退款中',
-  8: '已退款',
+  1: '待支付',
+  2: '成功',
+  3: '失败',
+  4: '关闭',
+  5: '退款中',
+  6: '已退款',
 };
 
 export const MEM_STATUS: Record<number, string> = {
-  1: '待支付',
-  3: '已履约',
-  4: '已取消',
-  5: '已退款',
+  1: '已创建',
+  2: '已履约',
+  3: '已取消',
+  4: '已退款',
 };
 
 export const ENTITLEMENT_STATUS: Record<number, string> = {
@@ -30,6 +29,7 @@ export const ENTITLEMENT_STATUS: Record<number, string> = {
 export const REFUND_STATUS: Record<number, string> = {
   1: '待退',
   2: '已退',
+  3: '需人工',
 };
 
 export const CLOSE_TASK_STATUS: Record<number, string> = {

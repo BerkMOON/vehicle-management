@@ -8,14 +8,18 @@ import {
 import {
   formatAmountMinor,
   PROVIDER_OPTIONS,
-  REFUND_STATUS,
   REFUND_STATUS_OPTIONS,
 } from '@/services/membership/constants';
 import type { PaymentRefund } from '@/services/membership/typings';
 import { Navigate, useAccess } from '@umijs/max';
-import { Col, Form, Input, Modal, Select } from 'antd';
+import { Col, Form, Input, Modal, Result, Select } from 'antd';
 import React, { useRef, useState } from 'react';
-import { postMembershipAction } from '../utils';
+import { renderRefundStatusTag } from '../statusTags';
+import {
+  MEMBERSHIP_FIELD_WIDTH,
+  postMembershipAction,
+  renderDateTime,
+} from '../utils';
 
 const RefundsPage: React.FC = () => {
   const { isLogin, membershipManage } = useAccess();
@@ -35,7 +39,7 @@ const RefundsPage: React.FC = () => {
 
   if (!isLogin) return <Navigate to="/login" />;
   if (!membershipManage()) {
-    return <div style={{ padding: 48, textAlign: 'center' }}>无权限访问</div>;
+    return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
   return (
@@ -55,29 +59,51 @@ const RefundsPage: React.FC = () => {
         }
         searchFormItems={
           <>
-            <Col span={6}>
+            <Col>
               <Form.Item name="refund_no" label="退款单号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入退款单号"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="payment_order_no" label="PAY 单号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入 PAY 单号"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="user_phone" label="手机号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入手机号"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="status" label="状态">
-                <Select allowClear options={REFUND_STATUS_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择状态"
+                  options={REFUND_STATUS_OPTIONS}
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="provider" label="渠道">
-                <Select allowClear options={PROVIDER_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择渠道"
+                  options={PROVIDER_OPTIONS}
+                />
               </Form.Item>
             </Col>
           </>
@@ -96,11 +122,19 @@ const RefundsPage: React.FC = () => {
           {
             title: '状态',
             dataIndex: 'status',
-            render: (v: number) => REFUND_STATUS[v] ?? v,
+            render: (v: number) => renderRefundStatusTag(v),
           },
           { title: '原因', dataIndex: 'reason', ellipsis: true },
-          { title: '申请时间', dataIndex: 'requested_at' },
-          { title: '完成时间', dataIndex: 'completed_at' },
+          {
+            title: '申请时间',
+            dataIndex: 'requested_at',
+            render: renderDateTime,
+          },
+          {
+            title: '完成时间',
+            dataIndex: 'completed_at',
+            render: renderDateTime,
+          },
         ]}
       />
       <Modal

@@ -8,7 +8,6 @@ import {
 } from '@/services/membership/MembershipController';
 import {
   formatAmountMinor,
-  MEM_STATUS,
   MEM_STATUS_OPTIONS,
 } from '@/services/membership/constants';
 import type {
@@ -22,12 +21,22 @@ import {
   Drawer,
   Form,
   Input,
+  Result,
   Select,
   Spin,
   Table,
-  Tag,
 } from 'antd';
 import React, { useRef, useState } from 'react';
+import {
+  renderMemStatusTag,
+  renderOrderTypeTag,
+  renderPayStatusTag,
+} from '../statusTags';
+import {
+  formatDateTime,
+  MEMBERSHIP_FIELD_WIDTH,
+  renderDateTime,
+} from '../utils';
 
 const MembershipOrdersPage: React.FC = () => {
   const { isLogin, membershipManage } = useAccess();
@@ -54,7 +63,7 @@ const MembershipOrdersPage: React.FC = () => {
 
   if (!isLogin) return <Navigate to="/login" />;
   if (!membershipManage()) {
-    return <div style={{ padding: 48, textAlign: 'center' }}>无权限访问</div>;
+    return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
   return (
@@ -67,25 +76,40 @@ const MembershipOrdersPage: React.FC = () => {
         }
         searchFormItems={
           <>
-            <Col span={6}>
+            <Col>
               <Form.Item name="user_phone" label="手机号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入手机号"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="membership_order_no" label="MEM 单号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入 MEM 单号"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="status" label="状态">
-                <Select allowClear options={MEM_STATUS_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择状态"
+                  options={MEM_STATUS_OPTIONS}
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="order_type" label="类型">
                 <Select
                   allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择类型"
                   options={[
                     { label: '购买', value: 'PURCHASE' },
                     { label: '赠送', value: 'GRANT' },
@@ -109,8 +133,7 @@ const MembershipOrdersPage: React.FC = () => {
           {
             title: '类型',
             dataIndex: 'order_type',
-            render: (v: string) =>
-              v === 'GRANT' ? <Tag color="blue">赠送</Tag> : <Tag>购买</Tag>,
+            render: (v: string) => renderOrderTypeTag(v),
           },
           {
             title: '金额',
@@ -121,9 +144,9 @@ const MembershipOrdersPage: React.FC = () => {
           {
             title: '状态',
             dataIndex: 'status',
-            render: (v: number) => MEM_STATUS[v] ?? v,
+            render: (v: number) => renderMemStatusTag(v),
           },
-          { title: '创建时间', dataIndex: 'ctime' },
+          { title: '创建时间', dataIndex: 'ctime', render: renderDateTime },
         ]}
       />
       <Drawer
@@ -152,10 +175,10 @@ const MembershipOrdersPage: React.FC = () => {
                   {detail.order.sku_name}
                 </Descriptions.Item>
                 <Descriptions.Item label="类型">
-                  {detail.order.order_type}
+                  {renderOrderTypeTag(detail.order.order_type)}
                 </Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  {MEM_STATUS[detail.order.status]}
+                  {renderMemStatusTag(detail.order.status)}
                 </Descriptions.Item>
                 <Descriptions.Item label="赠送原因">
                   {detail.order.grant_reason || '-'}
@@ -164,10 +187,13 @@ const MembershipOrdersPage: React.FC = () => {
                   {detail.order.fulfilled_payment_order_no || '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="权益起">
-                  {detail.order.effective_start || '-'}
+                  {formatDateTime(detail.order.effective_start)}
                 </Descriptions.Item>
                 <Descriptions.Item label="权益止">
-                  {detail.order.effective_end || '-'}
+                  {formatDateTime(detail.order.effective_end)}
+                </Descriptions.Item>
+                <Descriptions.Item label="创建时间">
+                  {formatDateTime(detail.order.ctime)}
                 </Descriptions.Item>
               </Descriptions>
               <h4 style={{ marginTop: 24 }}>关联支付单</h4>
@@ -184,7 +210,16 @@ const MembershipOrdersPage: React.FC = () => {
                     dataIndex: 'amount_minor',
                     render: (v: number) => formatAmountMinor(v),
                   },
-                  { title: '状态', dataIndex: 'status' },
+                  {
+                    title: '状态',
+                    dataIndex: 'status',
+                    render: renderPayStatusTag,
+                  },
+                  {
+                    title: '支付时间',
+                    dataIndex: 'paid_at',
+                    render: renderDateTime,
+                  },
                 ]}
               />
             </>

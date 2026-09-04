@@ -7,12 +7,10 @@ import {
   MembershipAPI,
 } from '@/services/membership/MembershipController';
 import {
-  CLOSE_TASK_STATUS,
   formatAmountMinor,
   PROVIDER_OPTIONS,
 } from '@/services/membership/constants';
 import type { PaymentEventInbox } from '@/services/membership/typings';
-import { PageContainer } from '@ant-design/pro-components';
 import { Navigate, useAccess } from '@umijs/max';
 import {
   Button,
@@ -24,6 +22,7 @@ import {
   Input,
   message,
   Modal,
+  Result,
   Select,
   Spin,
   Table,
@@ -31,7 +30,20 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
-import { postMembershipAction } from '../utils';
+import {
+  renderCloseTaskStatusTag,
+  renderIdempotencyStateTag,
+  renderInboxProcessStatusTag,
+  renderInboxVerifyStatusTag,
+} from '../statusTags';
+import {
+  formatDateTime,
+  MEMBERSHIP_FIELD_WIDTH,
+  postMembershipAction,
+  renderDateTime,
+} from '../utils';
+
+const tabContentStyle = { padding: '0 40px' };
 
 const InboxTab: React.FC = () => {
   const ref = useRef<BaseListPageRef>(null);
@@ -80,24 +92,41 @@ const InboxTab: React.FC = () => {
         }
         searchFormItems={
           <>
-            <Col span={6}>
+            <Col>
               <Form.Item name="provider" label="渠道">
-                <Select allowClear options={PROVIDER_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择渠道"
+                  options={PROVIDER_OPTIONS}
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="event_type" label="事件类型">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入事件类型"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="process_status" label="处理状态">
-                <Input allowClear placeholder="1/3/4 等" />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="1/3/4 等"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="order_no" label="PAY 单号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入 PAY 单号"
+                />
               </Form.Item>
             </Col>
           </>
@@ -107,9 +136,15 @@ const InboxTab: React.FC = () => {
           { title: '渠道', dataIndex: 'provider', width: 90 },
           { title: '事件类型', dataIndex: 'event_type' },
           { title: 'PAY 单号', dataIndex: 'order_no' },
-          { title: '处理状态', dataIndex: 'process_status', width: 90 },
+          {
+            title: '处理状态',
+            dataIndex: 'process_status',
+            width: 90,
+            render: renderInboxProcessStatusTag,
+          },
           { title: '重试次数', dataIndex: 'retry_count', width: 90 },
           { title: '最后错误', dataIndex: 'last_error', ellipsis: true },
+          { title: '创建时间', dataIndex: 'ctime', render: renderDateTime },
           {
             title: '操作',
             render: (_: unknown, record: PaymentEventInbox) => (
@@ -136,10 +171,16 @@ const InboxTab: React.FC = () => {
                   {eventDetail.event_id}
                 </Descriptions.Item>
                 <Descriptions.Item label="verify_status">
-                  {eventDetail.verify_status}
+                  {renderInboxVerifyStatusTag(eventDetail.verify_status)}
                 </Descriptions.Item>
                 <Descriptions.Item label="process_status">
-                  {eventDetail.process_status}
+                  {renderInboxProcessStatusTag(eventDetail.process_status)}
+                </Descriptions.Item>
+                <Descriptions.Item label="next_retry_at">
+                  {formatDateTime(eventDetail.next_retry_at)}
+                </Descriptions.Item>
+                <Descriptions.Item label="processed_at">
+                  {formatDateTime(eventDetail.processed_at)}
                 </Descriptions.Item>
                 <Descriptions.Item label="last_error">
                   {eventDetail.last_error || '-'}
@@ -173,19 +214,31 @@ const AppleBindingTab: React.FC = () => (
     }
     searchFormItems={
       <>
-        <Col span={6}>
+        <Col>
           <Form.Item name="order_no" label="PAY 单号">
-            <Input allowClear />
+            <Input
+              allowClear
+              style={MEMBERSHIP_FIELD_WIDTH}
+              placeholder="请输入 PAY 单号"
+            />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col>
           <Form.Item name="transaction_id" label="Transaction ID">
-            <Input allowClear />
+            <Input
+              allowClear
+              style={MEMBERSHIP_FIELD_WIDTH}
+              placeholder="请输入 Transaction ID"
+            />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col>
           <Form.Item name="app_account_token" label="App Account Token">
-            <Input allowClear />
+            <Input
+              allowClear
+              style={MEMBERSHIP_FIELD_WIDTH}
+              placeholder="请输入 Token"
+            />
           </Form.Item>
         </Col>
       </>
@@ -197,6 +250,7 @@ const AppleBindingTab: React.FC = () => (
       { title: 'Product ID', dataIndex: 'product_id' },
       { title: '环境', dataIndex: 'environment' },
       { title: '用户 ID', dataIndex: 'user_id' },
+      { title: '创建时间', dataIndex: 'ctime', render: renderDateTime },
     ]}
   />
 );
@@ -208,10 +262,12 @@ const CloseTaskTab: React.FC = () => (
       fetchMembershipList(MembershipAPI.listCloseTasks, params)
     }
     searchFormItems={
-      <Col span={6}>
+      <Col>
         <Form.Item name="status" label="状态">
           <Select
             allowClear
+            style={MEMBERSHIP_FIELD_WIDTH}
+            placeholder="请选择状态"
             options={[
               { label: '待处理', value: 1 },
               { label: '已完成', value: 2 },
@@ -226,9 +282,9 @@ const CloseTaskTab: React.FC = () => (
       {
         title: '状态',
         dataIndex: 'status',
-        render: (v: number) => CLOSE_TASK_STATUS[v] ?? v,
+        render: (v: number) => renderCloseTaskStatusTag(v),
       },
-      { title: '创建时间', dataIndex: 'ctime' },
+      { title: '创建时间', dataIndex: 'ctime', render: renderDateTime },
     ]}
   />
 );
@@ -241,14 +297,22 @@ const IdempotencyTab: React.FC = () => (
     }
     searchFormItems={
       <>
-        <Col span={6}>
+        <Col>
           <Form.Item name="user_id" label="用户 ID">
-            <Input allowClear />
+            <Input
+              allowClear
+              style={MEMBERSHIP_FIELD_WIDTH}
+              placeholder="请输入用户 ID"
+            />
           </Form.Item>
         </Col>
-        <Col span={8}>
+        <Col>
           <Form.Item name="idempotency_key" label="幂等键">
-            <Input allowClear />
+            <Input
+              allowClear
+              style={{ width: 260 }}
+              placeholder="请输入幂等键"
+            />
           </Form.Item>
         </Col>
       </>
@@ -257,9 +321,9 @@ const IdempotencyTab: React.FC = () => (
       { title: '用户 ID', dataIndex: 'user_id' },
       { title: '幂等键', dataIndex: 'idempotency_key', ellipsis: true },
       { title: '操作', dataIndex: 'operation' },
-      { title: '状态', dataIndex: 'state' },
+      { title: '状态', dataIndex: 'state', render: renderIdempotencyStateTag },
       { title: '结果码', dataIndex: 'result_code' },
-      { title: '创建时间', dataIndex: 'ctime' },
+      { title: '创建时间', dataIndex: 'ctime', render: renderDateTime },
     ]}
   />
 );
@@ -295,7 +359,7 @@ const SalesSummaryTab: React.FC = () => {
   };
 
   return (
-    <div>
+    <div style={tabContentStyle}>
       <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
         <Form.Item
           name="range"
@@ -332,27 +396,30 @@ const SalesSummaryTab: React.FC = () => {
 
 const MembershipOpsPage: React.FC = () => {
   const { isLogin, membershipManage } = useAccess();
+
   if (!isLogin) return <Navigate to="/login" />;
   if (!membershipManage()) {
-    return <div style={{ padding: 48, textAlign: 'center' }}>无权限访问</div>;
+    return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
+  const items = [
+    { key: 'inbox', label: '回调 Inbox', children: <InboxTab /> },
+    { key: 'apple', label: 'Apple 绑定', children: <AppleBindingTab /> },
+    { key: 'close', label: '关单任务', children: <CloseTaskTab /> },
+    { key: 'idempotency', label: '幂等记录', children: <IdempotencyTab /> },
+    {
+      key: 'report',
+      label: '销售汇总',
+      children: <SalesSummaryTab />,
+    },
+  ];
+
   return (
-    <PageContainer title="运维监控">
-      <Tabs
-        items={[
-          { key: 'inbox', label: '回调 Inbox', children: <InboxTab /> },
-          { key: 'apple', label: 'Apple 绑定', children: <AppleBindingTab /> },
-          { key: 'close', label: '关单任务', children: <CloseTaskTab /> },
-          {
-            key: 'idempotency',
-            label: '幂等记录',
-            children: <IdempotencyTab />,
-          },
-          { key: 'report', label: '销售汇总', children: <SalesSummaryTab /> },
-        ]}
-      />
-    </PageContainer>
+    <Tabs
+      defaultActiveKey="inbox"
+      items={items}
+      tabBarStyle={{ padding: '0 40px' }}
+    />
   );
 };
 

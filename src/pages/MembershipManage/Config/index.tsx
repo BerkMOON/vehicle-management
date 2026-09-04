@@ -25,13 +25,19 @@ import {
   Input,
   InputNumber,
   Modal,
+  Result,
   Row,
   Select,
   Tabs,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
-import { postMembershipAction } from '../utils';
+import { renderProductStatusTag, renderSellableTag } from '../statusTags';
+import {
+  MEMBERSHIP_FIELD_WIDTH,
+  postMembershipAction,
+  renderDateTime,
+} from '../utils';
 
 const ProductTab: React.FC = () => {
   const ref = useRef<BaseListPageRef>(null);
@@ -92,9 +98,14 @@ const ProductTab: React.FC = () => {
           fetchMembershipList(MembershipAPI.listProducts, params)
         }
         searchFormItems={
-          <Col span={6}>
+          <Col>
             <Form.Item name="status" label="状态">
-              <Select allowClear options={PRODUCT_STATUS_OPTIONS} />
+              <Select
+                allowClear
+                style={MEMBERSHIP_FIELD_WIDTH}
+                placeholder="请选择状态"
+                options={PRODUCT_STATUS_OPTIONS}
+              />
             </Form.Item>
           </Col>
         }
@@ -106,12 +117,12 @@ const ProductTab: React.FC = () => {
             title: '可售',
             dataIndex: 'is_sellable',
             width: 80,
-            render: (v: number) => (v === 1 ? '是' : '否'),
+            render: (v: number) => renderSellableTag(v),
           },
           {
             title: '状态',
             dataIndex: 'status',
-            render: (v: number) => PRODUCT_STATUS[v] ?? v,
+            render: (v: number) => renderProductStatusTag(v),
           },
           { title: '排序', dataIndex: 'sort_no', width: 80 },
           {
@@ -230,14 +241,23 @@ const SkuTab: React.FC = () => {
         }
         searchFormItems={
           <>
-            <Col span={6}>
+            <Col>
               <Form.Item name="product_code" label="商品编码">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入商品编码"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="status" label="状态">
-                <Select allowClear options={PRODUCT_STATUS_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择状态"
+                  options={PRODUCT_STATUS_OPTIONS}
+                />
               </Form.Item>
             </Col>
           </>
@@ -261,7 +281,7 @@ const SkuTab: React.FC = () => {
           {
             title: '状态',
             dataIndex: 'status',
-            render: (v: number) => PRODUCT_STATUS[v] ?? v,
+            render: (v: number) => renderProductStatusTag(v),
           },
           {
             title: '操作',
@@ -366,14 +386,23 @@ const PriceTab: React.FC = () => {
         }
         searchFormItems={
           <>
-            <Col span={6}>
+            <Col>
               <Form.Item name="sku_code" label="SKU">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入 SKU 编码"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="client_platform" label="平台">
-                <Select allowClear options={PLATFORM_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择平台"
+                  options={PLATFORM_OPTIONS}
+                />
               </Form.Item>
             </Col>
           </>
@@ -388,12 +417,20 @@ const PriceTab: React.FC = () => {
               formatAmountMinor(v, r.currency),
           },
           { title: 'iOS Product ID', dataIndex: 'provider_product_id' },
-          { title: '生效起', dataIndex: 'effective_start' },
-          { title: '生效止', dataIndex: 'effective_end' },
+          {
+            title: '生效起',
+            dataIndex: 'effective_start',
+            render: renderDateTime,
+          },
+          {
+            title: '生效止',
+            dataIndex: 'effective_end',
+            render: renderDateTime,
+          },
           {
             title: '状态',
             dataIndex: 'status',
-            render: (v: number) => PRODUCT_STATUS[v] ?? v,
+            render: (v: number) => renderProductStatusTag(v),
           },
         ]}
       />
@@ -471,9 +508,13 @@ const BenefitTab: React.FC = () => {
           fetchMembershipList(MembershipAPI.listBenefits, params)
         }
         searchFormItems={
-          <Col span={6}>
+          <Col>
             <Form.Item name="product_code" label="商品编码">
-              <Input allowClear />
+              <Input
+                allowClear
+                style={MEMBERSHIP_FIELD_WIDTH}
+                placeholder="请输入商品编码"
+              />
             </Form.Item>
           </Col>
         }
@@ -484,7 +525,7 @@ const BenefitTab: React.FC = () => {
           {
             title: '状态',
             dataIndex: 'status',
-            render: (v: number) => PRODUCT_STATUS[v] ?? v,
+            render: (v: number) => renderProductStatusTag(v),
           },
           {
             title: '操作',
@@ -537,21 +578,27 @@ const BenefitTab: React.FC = () => {
 
 const MembershipConfigPage: React.FC = () => {
   const { isLogin, membershipManage } = useAccess();
-  if (!isLogin) return <Navigate to="/login" />;
-  if (!membershipManage()) {
-    return (
-      <div style={{ padding: 48, textAlign: 'center' }}>无权限访问会员配置</div>
-    );
+
+  if (!isLogin) {
+    return <Navigate to="/login" />;
   }
+
+  if (!membershipManage()) {
+    return <Result status="403" title="403" subTitle="无权限访问" />;
+  }
+
+  const items = [
+    { key: 'products', label: '商品', children: <ProductTab /> },
+    { key: 'skus', label: 'SKU', children: <SkuTab /> },
+    { key: 'prices', label: '定价', children: <PriceTab /> },
+    { key: 'benefits', label: '权益', children: <BenefitTab /> },
+  ];
 
   return (
     <Tabs
-      items={[
-        { key: 'products', label: '商品', children: <ProductTab /> },
-        { key: 'skus', label: 'SKU', children: <SkuTab /> },
-        { key: 'prices', label: '定价', children: <PriceTab /> },
-        { key: 'benefits', label: '权益', children: <BenefitTab /> },
-      ]}
+      defaultActiveKey="products"
+      items={items}
+      tabBarStyle={{ padding: '0 40px' }}
     />
   );
 };

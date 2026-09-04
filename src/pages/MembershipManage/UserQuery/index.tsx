@@ -1,6 +1,5 @@
 import { SuccessCode } from '@/constants';
 import { MembershipAPI } from '@/services/membership/MembershipController';
-import { ENTITLEMENT_STATUS } from '@/services/membership/constants';
 import type { UserMembershipStatus } from '@/services/membership/typings';
 import { PageContainer } from '@ant-design/pro-components';
 import { Navigate, useAccess } from '@umijs/max';
@@ -13,6 +12,7 @@ import {
   Form,
   Input,
   Modal,
+  Result,
   Row,
   Select,
   Space,
@@ -21,7 +21,10 @@ import {
   message,
 } from 'antd';
 import React, { useState } from 'react';
-import { postMembershipAction } from '../utils';
+import { renderEntitlementStatusTag } from '../statusTags';
+import { postMembershipAction, renderDateTime } from '../utils';
+
+const pageContentStyle = { padding: '0 40px' };
 
 const UserMembershipPage: React.FC = () => {
   const { isLogin, membershipManage } = useAccess();
@@ -126,96 +129,108 @@ const UserMembershipPage: React.FC = () => {
 
   if (!isLogin) return <Navigate to="/login" />;
   if (!membershipManage()) {
-    return <div style={{ padding: 48, textAlign: 'center' }}>无权限访问</div>;
+    return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
   return (
     <PageContainer title="用户会员查询">
-      <Card>
-        <Form form={searchForm} layout="inline" onFinish={search}>
-          <Form.Item name="user_id" label="用户 ID">
-            <Input placeholder="user_id" style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item name="phone" label="手机号">
-            <Input placeholder="完整手机号" style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                查询
-              </Button>
-              <Button
-                onClick={async () => {
-                  grantForm.resetFields();
-                  setGrantOpen(true);
-                  await loadCatalog();
-                }}
-              >
-                人工赠送
-              </Button>
-              <Button
-                danger
-                onClick={() => {
-                  revokeForm.resetFields();
-                  if (status) {
-                    revokeForm.setFieldsValue({
-                      user_id: status.user_id,
-                      phone: status.phone,
-                    });
-                  }
-                  setRevokeOpen(true);
-                }}
-              >
-                撤销权益
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
-
-      {status && (
-        <Card style={{ marginTop: 16 }} title="会员状态">
-          <Descriptions column={3}>
-            <Descriptions.Item label="用户 ID">
-              {status.user_id}
-            </Descriptions.Item>
-            <Descriptions.Item label="手机号">{status.phone}</Descriptions.Item>
-            <Descriptions.Item label="当前档位">
-              {status.active_level ? (
-                <Tag color="green">{status.active_level}</Tag>
-              ) : (
-                <Tag>无有效会员</Tag>
-              )}
-            </Descriptions.Item>
-          </Descriptions>
-          <Table
-            style={{ marginTop: 16 }}
-            rowKey="id"
-            size="small"
-            dataSource={status.entitlements}
-            pagination={false}
-            columns={[
-              { title: '档位', dataIndex: 'product_code' },
-              { title: '生效起', dataIndex: 'valid_from' },
-              { title: '生效止', dataIndex: 'valid_until' },
-              {
-                title: '状态',
-                dataIndex: 'status',
-                render: (v: number) => ENTITLEMENT_STATUS[v] ?? v,
-              },
-            ]}
-          />
+      <div style={pageContentStyle}>
+        <Card>
+          <Form form={searchForm} layout="inline" onFinish={search}>
+            <Form.Item name="user_id" label="用户 ID">
+              <Input placeholder="user_id" style={{ width: 194 }} />
+            </Form.Item>
+            <Form.Item name="phone" label="手机号">
+              <Input placeholder="完整手机号" style={{ width: 194 }} />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit" loading={loading}>
+                  查询
+                </Button>
+                <Button
+                  onClick={async () => {
+                    grantForm.resetFields();
+                    setGrantOpen(true);
+                    await loadCatalog();
+                  }}
+                >
+                  人工赠送
+                </Button>
+                <Button
+                  danger
+                  onClick={() => {
+                    revokeForm.resetFields();
+                    if (status) {
+                      revokeForm.setFieldsValue({
+                        user_id: status.user_id,
+                        phone: status.phone,
+                      });
+                    }
+                    setRevokeOpen(true);
+                  }}
+                >
+                  撤销权益
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
         </Card>
-      )}
 
-      {!status && (
-        <Alert
-          style={{ marginTop: 16 }}
-          type="info"
-          showIcon
-          message="输入 user_id 或手机号查询用户会员状态"
-        />
-      )}
+        {status && (
+          <Card style={{ marginTop: 16 }} title="会员状态">
+            <Descriptions column={3}>
+              <Descriptions.Item label="用户 ID">
+                {status.user_id}
+              </Descriptions.Item>
+              <Descriptions.Item label="手机号">
+                {status.phone}
+              </Descriptions.Item>
+              <Descriptions.Item label="当前档位">
+                {status.active_level ? (
+                  <Tag color="green">{status.active_level}</Tag>
+                ) : (
+                  <Tag>无有效会员</Tag>
+                )}
+              </Descriptions.Item>
+            </Descriptions>
+            <Table
+              style={{ marginTop: 16 }}
+              rowKey="id"
+              size="small"
+              dataSource={status.entitlements}
+              pagination={false}
+              columns={[
+                { title: '档位', dataIndex: 'product_code' },
+                {
+                  title: '生效起',
+                  dataIndex: 'valid_from',
+                  render: renderDateTime,
+                },
+                {
+                  title: '生效止',
+                  dataIndex: 'valid_until',
+                  render: renderDateTime,
+                },
+                {
+                  title: '状态',
+                  dataIndex: 'status',
+                  render: renderEntitlementStatusTag,
+                },
+              ]}
+            />
+          </Card>
+        )}
+
+        {!status && (
+          <Alert
+            style={{ marginTop: 16 }}
+            type="info"
+            showIcon
+            message="输入 user_id 或手机号查询用户会员状态"
+          />
+        )}
+      </div>
 
       <Modal
         title="人工赠送会员"

@@ -8,7 +8,6 @@ import {
 } from '@/services/membership/MembershipController';
 import {
   formatAmountMinor,
-  PAY_STATUS,
   PAY_STATUS_OPTIONS,
   PLATFORM_OPTIONS,
   PROVIDER_OPTIONS,
@@ -24,11 +23,18 @@ import {
   Drawer,
   Form,
   Input,
+  Result,
   Select,
   Spin,
   Table,
 } from 'antd';
 import React, { useRef, useState } from 'react';
+import { renderPayStatusTag, renderRefundStatusTag } from '../statusTags';
+import {
+  formatDateTime,
+  MEMBERSHIP_FIELD_WIDTH,
+  renderDateTime,
+} from '../utils';
 
 const PaymentOrdersPage: React.FC = () => {
   const { isLogin, membershipManage } = useAccess();
@@ -53,7 +59,7 @@ const PaymentOrdersPage: React.FC = () => {
 
   if (!isLogin) return <Navigate to="/login" />;
   if (!membershipManage()) {
-    return <div style={{ padding: 48, textAlign: 'center' }}>无权限访问</div>;
+    return <Result status="403" title="403" subTitle="无权限访问" />;
   }
 
   return (
@@ -66,29 +72,52 @@ const PaymentOrdersPage: React.FC = () => {
         }
         searchFormItems={
           <>
-            <Col span={6}>
+            <Col>
               <Form.Item name="order_no" label="PAY 单号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入 PAY 单号"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="user_phone" label="手机号">
-                <Input allowClear />
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请输入手机号"
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="provider" label="渠道">
-                <Select allowClear options={PROVIDER_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择渠道"
+                  options={PROVIDER_OPTIONS}
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="status" label="状态">
-                <Select allowClear options={PAY_STATUS_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择状态"
+                  options={PAY_STATUS_OPTIONS}
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col>
               <Form.Item name="client_platform" label="平台">
-                <Select allowClear options={PLATFORM_OPTIONS} />
+                <Select
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="请选择平台"
+                  options={PLATFORM_OPTIONS}
+                />
               </Form.Item>
             </Col>
           </>
@@ -114,14 +143,15 @@ const PaymentOrdersPage: React.FC = () => {
           {
             title: '状态',
             dataIndex: 'status',
-            render: (v: number) => PAY_STATUS[v] ?? v,
+            render: (v: number) => renderPayStatusTag(v),
           },
           {
             title: '渠道交易号',
             dataIndex: 'provider_transaction_no',
             ellipsis: true,
           },
-          { title: '支付时间', dataIndex: 'paid_at' },
+          { title: '支付时间', dataIndex: 'paid_at', render: renderDateTime },
+          { title: '创建时间', dataIndex: 'ctime', render: renderDateTime },
         ]}
       />
       <Drawer
@@ -141,7 +171,7 @@ const PaymentOrdersPage: React.FC = () => {
                   {detail.order.user_phone}
                 </Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  {PAY_STATUS[detail.order.status]}
+                  {renderPayStatusTag(detail.order.status)}
                 </Descriptions.Item>
                 <Descriptions.Item label="金额">
                   {formatAmountMinor(
@@ -159,10 +189,13 @@ const PaymentOrdersPage: React.FC = () => {
                   {detail.order.client_idempotency_key || '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="最后查单">
-                  {detail.order.last_query_at || '-'}
+                  {formatDateTime(detail.order.last_query_at)}
                 </Descriptions.Item>
                 <Descriptions.Item label="支付时间">
-                  {detail.order.paid_at || '-'}
+                  {formatDateTime(detail.order.paid_at)}
+                </Descriptions.Item>
+                <Descriptions.Item label="创建时间">
+                  {formatDateTime(detail.order.ctime)}
                 </Descriptions.Item>
               </Descriptions>
               {detail.membership && (
@@ -194,7 +227,11 @@ const PaymentOrdersPage: React.FC = () => {
                     dataIndex: 'amount_minor',
                     render: (v: number) => formatAmountMinor(v),
                   },
-                  { title: '状态', dataIndex: 'status' },
+                  {
+                    title: '状态',
+                    dataIndex: 'status',
+                    render: renderRefundStatusTag,
+                  },
                   { title: '原因', dataIndex: 'reason' },
                 ]}
               />
