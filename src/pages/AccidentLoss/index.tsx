@@ -13,9 +13,11 @@ import {
   Card,
   Divider,
   InputNumber,
+  Select,
   Space,
   Steps,
   Table,
+  Tag,
   Typography,
   Upload,
   message,
@@ -31,6 +33,49 @@ const DEFAULT_WINDOW_DAYS = 60;
 /** 全局限流：任意 1 秒内最多发起这么多次 HTTP 请求，避免压垮服务端 */
 const HTTP_REQUESTS_PER_SECOND = 10;
 const RATE_WINDOW_MS = 1000;
+
+/** 细化判定：区分「疑似我方丢失」与「非系统责任/无法归因」 */
+type ResultCategory =
+  | 'found' // 系统有通过线索
+  | 'no_clue' // 有设备，窗口内无通过线索 → 疑似我方丢失
+  | 'no_device' // 未查到 VIN 对应设备
+  | 'invalid_time' // 事故时间无效
+  | 'query_error'; // 接口失败
+
+const CATEGORY_META: Record<
+  ResultCategory,
+  { label: string; color: string; suspectOurLoss: boolean }
+> = {
+  found: {
+    label: '未丢失(系统有通过线索)',
+    color: 'success',
+    suspectOurLoss: false,
+  },
+  no_clue: {
+    label: '疑似我方丢失(有设备无通过线索)',
+    color: 'error',
+    suspectOurLoss: true,
+  },
+  no_device: {
+    label: '未绑定设备(查无 VIN 设备)',
+    color: 'default',
+    suspectOurLoss: false,
+  },
+  invalid_time: {
+    label: '事故时间无效',
+    color: 'warning',
+    suspectOurLoss: false,
+  },
+  query_error: {
+    label: '接口查询失败',
+    color: 'warning',
+    suspectOurLoss: false,
+  },
+};
+
+const ALL_CATEGORIES = Object.keys(CATEGORY_META) as ResultCategory[];
+/** 默认筛选项：只看「疑似我方丢失」 */
+const DEFAULT_FILTER_CATEGORIES: ResultCategory[] = ['no_clue'];
 
 /**
  * 滑动窗口限流：在调用返回前会 await，保证全局「请求开始」频率不超过 maxPerWindow / windowMs
@@ -58,15 +103,26 @@ function createSlidingWindowLimiter(maxPerWindow: number, windowMs: number) {
 
 type ParsedRow = {
   key: string;
+  seq?: string;
   vin: string;
-  device_id?: string;
-  in_time: string; // 原始字符串
-  in_time_dt?: string; // 标准化 YYYY-MM-DD HH:mm:ss
+  plate_no?: string;
+  car_model?: string;
+  channel?: string;
+  receive_time?: string;
+  accident_time: string;
+  accident_time_dt: string;
+  purchase_date?: string;
+  installed_eda?: string;
+  eda_provided_clue?: string;
+  returned_to_store?: string;
+  loss_amount?: string;
+  outreach_fee?: string;
 };
 
 type ResultRow = ParsedRow & {
-  matched: boolean; // 是否找到“通过”的任务/线索
-  matched_device_id?: string; // VIN 关联出来的 device_id
+  matched: boolean;
+  category: ResultCategory;
+  matched_device_id?: string;
   clue_id?: string;
   status_name?: string;
   approved_time?: string;
@@ -75,6 +131,8 @@ type ResultRow = ParsedRow & {
 
 function normalizeHeader(h: string) {
   return String(h || '')
+    .replace(/\s+/g, '')
+    .replace(/\n/g, '')
     .trim()
     .toLowerCase();
 }
@@ -82,21 +140,97 @@ function normalizeHeader(h: string) {
 function guessColumnIndex(headers: string[], candidates: string[]) {
   const normalized = headers.map(normalizeHeader);
   for (const c of candidates) {
-    const idx = normalized.findIndex((h) => h.includes(c));
+    const needle = normalizeHeader(c);
+    if (!needle) continue;
+    // 禁止用空表头匹配：'xxx'.includes('') === true，会把标题行误判成表头
+    const idx = normalized.findIndex(
+      (h) => !!h && (h.includes(needle) || needle.includes(h)),
+    );
     if (idx >= 0) return idx;
   }
   return -1;
 }
 
+/** 在前若干行中定位表头行（台账标题在第 1 行，表头通常在第 2 行） */
+function findHeaderRow(raw: any[][]): { rowIndex: number; headers: string[] } {
+  const maxScan = Math.min(raw.length, 10);
+  for (let i = 0; i < maxScan; i++) {
+    const headers = (raw[i] || []).map((h) => String(h || '').trim());
+    const vinIdx = guessColumnIndex(headers, ['车架号', 'vin']);
+    const timeIdx = guessColumnIndex(headers, [
+      '事故发生时间',
+      '事故时间',
+      '收到线索日期',
+      '收到线索',
+    ]);
+    // 必须同时具备车架号 + 时间列，避免标题行空单元格误匹配
+    if (vinIdx >= 0 && timeIdx >= 0) {
+      return { rowIndex: i, headers };
+    }
+  }
+  return { rowIndex: -1, headers: [] };
+}
+
 function formatExcelTime(value: any): string {
-  if (value === null) return '';
-  if (value instanceof Date) return dayjs(value).format('YYYY-MM-DD HH:mm:ss');
+  if (value === null || value === undefined || value === '') return '';
+  if (value instanceof Date) {
+    return dayjs(value).isValid()
+      ? dayjs(value).format('YYYY-MM-DD HH:mm:ss')
+      : '';
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    // Excel 序列日期（含小数时间）；过小的整数多半是序号而非日期
+    if (value > 0 && value < 1000 && Number.isInteger(value)) {
+      return '';
+    }
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed && parsed.y >= 1990) {
+      const dt = dayjs(
+        new Date(
+          parsed.y,
+          parsed.m - 1,
+          parsed.d,
+          parsed.H || 0,
+          parsed.M || 0,
+          Math.floor(parsed.S || 0),
+        ),
+      );
+      return dt.isValid() ? dt.format('YYYY-MM-DD HH:mm:ss') : '';
+    }
+    return '';
+  }
   const s = String(value).trim();
   if (!s) return '';
-  // 尝试解析常见格式
-  const dt = dayjs(s);
+  // 兼容 Excel 展示格式：2026/8/1 9:56
+  const normalized = s.replace(/\//g, '-');
+  const dt = dayjs(normalized);
   if (dt.isValid()) return dt.format('YYYY-MM-DD HH:mm:ss');
-  return s;
+  const dt2 = dayjs(s);
+  if (dt2.isValid()) return dt2.format('YYYY-MM-DD HH:mm:ss');
+  return '';
+}
+
+function cellText(value: any): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) {
+    return dayjs(value).isValid()
+      ? dayjs(value).format('YYYY-MM-DD HH:mm:ss')
+      : '';
+  }
+  return String(value).trim();
+}
+
+/** 优先取第 2 个 sheet（「二」事故车线索台账），否则按名称匹配 */
+function pickLedgerSheet(wb: XLSX.WorkBook): XLSX.WorkSheet | null {
+  const names = wb.SheetNames || [];
+  if (names.length >= 2) {
+    return wb.Sheets[names[1]];
+  }
+  const byName = names.find(
+    (n) => n.includes('二') || n.includes('台账') || n.includes('线索'),
+  );
+  if (byName) return wb.Sheets[byName];
+  return names[0] ? wb.Sheets[names[0]] : null;
 }
 
 async function fetchDeviceIdByVin(vin: string): Promise<string | undefined> {
@@ -104,37 +238,11 @@ async function fetchDeviceIdByVin(vin: string): Promise<string | undefined> {
   const res = await EquipmentAPI.getEquipmentRelations({
     page: 1,
     limit: 20,
-    // typings 里未声明，但后端通常支持 vin 条件；这里按实际接口能力传递
     vin,
   } as any);
   const list: EquipmentRelationItem[] = (res as any)?.data?.relation_list || [];
   const hit = list.find((r) => String(r.vin || '').trim() === vin);
   return hit?.device_id;
-}
-
-function downloadResultsAsExcel(rows: ResultRow[]) {
-  if (rows.length === 0) {
-    message.warning('暂无结果可下载');
-    return;
-  }
-  const sheetData = rows.map((r) => ({
-    车架号: r.vin,
-    进店时间: r.in_time_dt ?? '',
-    设备ID: r.matched_device_id ?? '',
-    是否丢失: r.matched ? '未丢失' : '丢失',
-    线索ID: r.clue_id ?? '',
-    审核通过时间: r.approved_time ?? '',
-    状态: r.status_name ?? '',
-    说明: r.reason ?? '',
-  }));
-  const ws = XLSX.utils.json_to_sheet(sheetData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '查询结果');
-  const filename = `事故丢失查询结果_${dayjs().format(
-    'YYYY-MM-DD_HHmmss',
-  )}.xlsx`;
-  XLSX.writeFile(wb, filename);
-  message.success(`已下载：${filename}`);
 }
 
 async function fetchApprovedTasksByDeviceId(
@@ -152,11 +260,52 @@ async function fetchApprovedTasksByDeviceId(
   return (res as any)?.data?.task_list || [];
 }
 
+function downloadResultsAsExcel(rows: ResultRow[]) {
+  if (rows.length === 0) {
+    message.warning('暂无结果可下载');
+    return;
+  }
+  const sheetData = rows.map((r) => ({
+    序号: r.seq ?? '',
+    收到线索日期: r.receive_time ?? '',
+    事故发生时间: r.accident_time_dt || r.accident_time,
+    线索渠道: r.channel ?? '',
+    车架号: r.vin,
+    车牌号: r.plate_no ?? '',
+    车型: r.car_model ?? '',
+    购车日期: r.purchase_date ?? '',
+    是否安装易达安: r.installed_eda ?? '',
+    易达安是否提供线索_台账: r.eda_provided_clue ?? '',
+    车辆是否回厂: r.returned_to_store ?? '',
+    定损金额: r.loss_amount ?? '',
+    外拓费: r.outreach_fee ?? '',
+    设备ID: r.matched_device_id ?? '',
+    结果分类: CATEGORY_META[r.category]?.label ?? r.category,
+    是否疑似我方丢失: CATEGORY_META[r.category]?.suspectOurLoss ? '是' : '否',
+    系统判定: r.matched ? '未丢失(系统有通过线索)' : '丢失/无法归因',
+    线索ID: r.clue_id ?? '',
+    审核通过时间: r.approved_time ?? '',
+    状态: r.status_name ?? '',
+    说明: r.reason ?? '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(sheetData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '查询结果');
+  const filename = `事故丢失查询结果_${dayjs().format(
+    'YYYY-MM-DD_HHmmss',
+  )}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  message.success(`已下载：${filename}`);
+}
+
 const AccidentLossPage: React.FC = () => {
   const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW_DAYS);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ResultRow[]>([]);
+  const [filterCategories, setFilterCategories] = useState<ResultCategory[]>(
+    DEFAULT_FILTER_CATEGORIES,
+  );
 
   const step = useMemo(() => {
     if (results.length > 0) return 2;
@@ -164,46 +313,84 @@ const AccidentLossPage: React.FC = () => {
     return 0;
   }, [parsedRows.length, results.length]);
 
+  const filteredResults = useMemo(() => {
+    if (filterCategories.length === 0) return results;
+    return results.filter((r) => filterCategories.includes(r.category));
+  }, [results, filterCategories]);
+
   const columns = [
-    { title: '车架号(VIN)', dataIndex: 'vin', key: 'vin', width: 220 },
+    { title: '序号', dataIndex: 'seq', key: 'seq', width: 70 },
+    { title: '车架号(VIN)', dataIndex: 'vin', key: 'vin', width: 180 },
+    { title: '车牌号', dataIndex: 'plate_no', key: 'plate_no', width: 110 },
+    { title: '车型', dataIndex: 'car_model', key: 'car_model', width: 120 },
     {
-      title: '进店时间',
-      dataIndex: 'in_time_dt',
-      key: 'in_time_dt',
-      width: 180,
+      title: '事故发生时间',
+      dataIndex: 'accident_time_dt',
+      key: 'accident_time_dt',
+      width: 170,
+    },
+    {
+      title: '收到线索日期',
+      dataIndex: 'receive_time',
+      key: 'receive_time',
+      width: 170,
+    },
+    { title: '线索渠道', dataIndex: 'channel', key: 'channel', width: 100 },
+    {
+      title: '台账-是否安装(仅参考)',
+      dataIndex: 'installed_eda',
+      key: 'installed_eda',
+      width: 140,
+    },
+    {
+      title: '台账-易达安是否提供线索',
+      dataIndex: 'eda_provided_clue',
+      key: 'eda_provided_clue',
+      width: 160,
     },
     {
       title: '设备ID',
       dataIndex: 'matched_device_id',
       key: 'matched_device_id',
-      width: 180,
+      width: 160,
     },
     {
-      title: '是否丢失',
-      dataIndex: 'matched',
-      key: 'matched',
-      width: 120,
-      render: (v: boolean) =>
-        v ? (
-          <Text type="success">未丢失</Text>
+      title: '结果分类',
+      dataIndex: 'category',
+      key: 'category',
+      width: 220,
+      render: (c: ResultCategory) => {
+        const meta = CATEGORY_META[c];
+        return <Tag color={meta?.color}>{meta?.label ?? c}</Tag>;
+      },
+    },
+    {
+      title: '疑似我方',
+      dataIndex: 'category',
+      key: 'suspect',
+      width: 90,
+      render: (c: ResultCategory) =>
+        CATEGORY_META[c]?.suspectOurLoss ? (
+          <Text type="danger">是</Text>
         ) : (
-          <Text type="danger">丢失</Text>
+          <Text type="secondary">否</Text>
         ),
     },
-    { title: '线索ID', dataIndex: 'clue_id', key: 'clue_id', width: 180 },
+    { title: '线索ID', dataIndex: 'clue_id', key: 'clue_id', width: 160 },
     {
       title: '审核通过时间',
       dataIndex: 'approved_time',
       key: 'approved_time',
-      width: 180,
+      width: 170,
     },
-    { title: '状态', dataIndex: 'status_name', key: 'status_name', width: 140 },
-    { title: '说明', dataIndex: 'reason', key: 'reason', width: 260 },
+    { title: '状态', dataIndex: 'status_name', key: 'status_name', width: 100 },
+    { title: '说明', dataIndex: 'reason', key: 'reason', width: 280 },
   ];
 
   const handleExcelFile = async (file: File) => {
     setResults([]);
     setParsedRows([]);
+    setFilterCategories(DEFAULT_FILTER_CATEGORIES);
     const isSheet = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
     if (!isSheet) {
       message.error('只能上传 xlsx/xls 文件');
@@ -214,54 +401,115 @@ const AccidentLossPage: React.FC = () => {
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const wb = XLSX.read(data, { type: 'binary' });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const wb = XLSX.read(data, { type: 'binary', cellDates: true });
+        const sheet = pickLedgerSheet(wb);
+        if (!sheet) {
+          message.error('未找到可用工作表');
+          return;
+        }
+
         const raw = XLSX.utils.sheet_to_json(sheet, {
           header: 1,
-          raw: false,
+          raw: true,
           defval: '',
         }) as any[][];
 
-        const headers = (raw?.[0] || []).map((h) => String(h || '').trim());
-        const vinIdx = guessColumnIndex(headers, ['车架号', 'vin']);
-        const deviceIdx = guessColumnIndex(headers, [
-          '设备号',
-          'device',
-          'device_id',
-        ]);
-        const timeIdx = guessColumnIndex(headers, [
-          '进店时间',
-          '进店',
-          '时间',
-          'in_time',
-        ]);
+        const { rowIndex: headerRowIndex, headers } = findHeaderRow(raw);
+        if (headerRowIndex < 0) {
+          message.error(
+            '未识别到表头（需含「车架号」列）。请确认上传的是第二个 sheet「事故车线索台账」',
+          );
+          return;
+        }
 
+        const vinIdx = guessColumnIndex(headers, ['车架号', 'vin']);
+        const accidentIdx = guessColumnIndex(headers, [
+          '事故发生时间',
+          '事故时间',
+          '事故发生',
+        ]);
+        const receiveIdx = guessColumnIndex(headers, [
+          '收到线索日期',
+          '收到线索',
+          '线索日期',
+        ]);
+        const seqIdx = guessColumnIndex(headers, ['序号']);
+        const plateIdx = guessColumnIndex(headers, ['车牌号', '车牌']);
+        const modelIdx = guessColumnIndex(headers, ['车型']);
+        const channelIdx = guessColumnIndex(headers, ['线索渠道', '渠道']);
+        const purchaseIdx = guessColumnIndex(headers, ['购车日期', '购车']);
+        const installedIdx = guessColumnIndex(headers, [
+          '是否安装易达安',
+          '是否安装',
+        ]);
+        const providedIdx = guessColumnIndex(headers, [
+          '易达安是否提供线索',
+          '是否提供线索',
+        ]);
+        const returnedIdx = guessColumnIndex(headers, [
+          '车辆是否回厂',
+          '是否回厂',
+        ]);
+        const amountIdx = guessColumnIndex(headers, ['定损金额', '定损']);
+        const feeIdx = guessColumnIndex(headers, ['外拓费']);
+
+        // 时间基准：优先事故发生时间，否则收到线索日期
+        const timeIdx = accidentIdx >= 0 ? accidentIdx : receiveIdx;
         if (vinIdx < 0 || timeIdx < 0) {
-          message.error('未识别到必填列：车架号(VIN)、进店时间');
+          message.error(
+            '未识别到必填列：车架号、事故发生时间（或收到线索日期）',
+          );
           return;
         }
 
         const rows: ParsedRow[] = raw
-          .slice(1)
-          .filter((r) => r?.some((v) => String(v || '').trim() !== ''))
+          .slice(headerRowIndex + 1)
+          .filter((r) => r?.some((v) => String(v ?? '').trim() !== ''))
           .map((r, idx) => {
-            const vin = String(r[vinIdx] || '').trim();
-            const device_id =
-              deviceIdx >= 0 ? String(r[deviceIdx] || '').trim() : '';
-            const in_time = String(r[timeIdx] || '').trim();
-            const in_time_dt = formatExcelTime(r[timeIdx]);
+            const vin = cellText(r[vinIdx]).toUpperCase();
+            const accidentRaw = accidentIdx >= 0 ? r[accidentIdx] : r[timeIdx];
+            const accident_time_dt = formatExcelTime(accidentRaw);
+            const accident_time = accident_time_dt || cellText(accidentRaw);
             return {
               key: String(idx),
+              seq: seqIdx >= 0 ? cellText(r[seqIdx]) : undefined,
               vin,
-              device_id: device_id || undefined,
-              in_time,
-              in_time_dt: in_time_dt || undefined,
+              plate_no: plateIdx >= 0 ? cellText(r[plateIdx]) : undefined,
+              car_model: modelIdx >= 0 ? cellText(r[modelIdx]) : undefined,
+              channel: channelIdx >= 0 ? cellText(r[channelIdx]) : undefined,
+              receive_time:
+                receiveIdx >= 0
+                  ? formatExcelTime(r[receiveIdx]) || cellText(r[receiveIdx])
+                  : undefined,
+              accident_time,
+              accident_time_dt,
+              purchase_date:
+                purchaseIdx >= 0
+                  ? formatExcelTime(r[purchaseIdx]) || cellText(r[purchaseIdx])
+                  : undefined,
+              installed_eda:
+                installedIdx >= 0 ? cellText(r[installedIdx]) : undefined,
+              eda_provided_clue:
+                providedIdx >= 0 ? cellText(r[providedIdx]) : undefined,
+              returned_to_store:
+                returnedIdx >= 0 ? cellText(r[returnedIdx]) : undefined,
+              loss_amount: amountIdx >= 0 ? cellText(r[amountIdx]) : undefined,
+              outreach_fee: feeIdx >= 0 ? cellText(r[feeIdx]) : undefined,
             };
           })
-          .filter((r) => r.vin && r.in_time_dt);
+          .filter((r) => r.vin && r.accident_time_dt);
+
+        if (rows.length === 0) {
+          message.warning('未解析到有效数据行（需有车架号与事故发生时间）');
+          return;
+        }
 
         setParsedRows(rows);
-        message.success(`解析成功：${rows.length} 行`);
+        message.success(
+          `已从「${wb.SheetNames[1] || wb.SheetNames[0]}」解析 ${
+            rows.length
+          } 行`,
+        );
       } catch (err) {
         console.error(err);
         message.error('解析 Excel 失败');
@@ -285,7 +533,18 @@ const AccidentLossPage: React.FC = () => {
       const out: ResultRow[] = [];
 
       for (const row of parsedRows) {
-        const base = dayjs(row.in_time_dt);
+        const base = dayjs(row.accident_time_dt);
+        if (!base.isValid()) {
+          out.push({
+            ...row,
+            matched: false,
+            category: 'invalid_time',
+            reason: '事故发生时间无效，无法查询',
+          });
+          continue;
+        }
+
+        // 是否安装只以 VIN 查设备绑定为准，不采信台账「是否安装易达安」
         const start = base
           .subtract(windowDays, 'day')
           .format('YYYY-MM-DD HH:mm:ss');
@@ -293,42 +552,72 @@ const AccidentLossPage: React.FC = () => {
 
         let deviceId: string | undefined;
         let matchedTask: AuditTaskItem | undefined;
+        let queryError = false;
         try {
           await acquire();
           deviceId = await fetchDeviceIdByVin(row.vin);
-          if (!deviceId) continue;
-
-          await acquire();
-          const tasks = await fetchApprovedTasksByDeviceId(deviceId);
-          // 在进店时间窗口内，是否存在 status=1(通过) 的任务
-          matchedTask = tasks.find((t) => {
-            const approved = dayjs((t as any).create_time);
-            if (!approved.isValid()) return false;
-            return (
-              (approved.isAfter(start) || approved.isSame(start)) &&
-              (approved.isBefore(end) || approved.isSame(end))
-            );
-          });
+          if (deviceId) {
+            await acquire();
+            const tasks = await fetchApprovedTasksByDeviceId(deviceId);
+            matchedTask = tasks.find((t) => {
+              const approved = dayjs((t as any).create_time);
+              if (!approved.isValid()) return false;
+              return (
+                (approved.isAfter(start) || approved.isSame(start)) &&
+                (approved.isBefore(end) || approved.isSame(end))
+              );
+            });
+          }
         } catch (e) {
           console.error('查询失败', e);
+          queryError = true;
         }
 
-        if (!deviceId) continue;
+        if (queryError) {
+          out.push({
+            ...row,
+            matched: false,
+            category: 'query_error',
+            matched_device_id: deviceId,
+            reason: '接口查询失败，需重试后再判定',
+          });
+          continue;
+        }
 
-        out.push({
-          ...row,
-          matched: Boolean(matchedTask),
-          matched_device_id: deviceId,
-          clue_id: (matchedTask as any)?.clue_id,
-          approved_time: (matchedTask as any)?.create_time,
-          status_name: (matchedTask as any)?.status?.name,
-          reason: matchedTask
-            ? `进店前${windowDays}天内存在 status=1(通过) 任务`
-            : `进店前${windowDays}天内未找到 status=1(通过) 任务`,
-        });
+        if (!deviceId) {
+          out.push({
+            ...row,
+            matched: false,
+            category: 'no_device',
+            reason: '未查到 VIN 对应设备（以系统绑定为准），不计入疑似我方丢失',
+          });
+          continue;
+        }
+
+        if (matchedTask) {
+          out.push({
+            ...row,
+            matched: true,
+            category: 'found',
+            matched_device_id: deviceId,
+            clue_id: (matchedTask as any)?.clue_id,
+            approved_time: (matchedTask as any)?.create_time,
+            status_name: (matchedTask as any)?.status?.name,
+            reason: `事故发生前${windowDays}天内存在 status=1(通过) 任务`,
+          });
+        } else {
+          out.push({
+            ...row,
+            matched: false,
+            category: 'no_clue',
+            matched_device_id: deviceId,
+            reason: `有设备，但事故发生前${windowDays}天内未找到 status=1(通过) 任务 → 疑似我方丢失`,
+          });
+        }
       }
 
       setResults(out);
+      setFilterCategories(DEFAULT_FILTER_CATEGORIES);
       message.success('查询完成');
     } finally {
       setLoading(false);
@@ -336,10 +625,21 @@ const AccidentLossPage: React.FC = () => {
   };
 
   const summary = useMemo(() => {
-    const total = results.length;
-    const ok = results.filter((r) => r.matched).length;
-    return { total, ok, lost: total - ok };
-  }, [results]);
+    const byCategory = ALL_CATEGORIES.reduce((acc, c) => {
+      acc[c] = results.filter((r) => r.category === c).length;
+      return acc;
+    }, {} as Record<ResultCategory, number>);
+    const suspect = results.filter(
+      (r) => CATEGORY_META[r.category]?.suspectOurLoss,
+    ).length;
+    return {
+      total: results.length,
+      found: byCategory.found,
+      suspect,
+      byCategory,
+      filtered: filteredResults.length,
+    };
+  }, [results, filteredResults.length]);
 
   return (
     <PageContainer header={{ title: '事故丢失处理' }}>
@@ -348,21 +648,27 @@ const AccidentLossPage: React.FC = () => {
           <Steps
             current={step}
             items={[
-              { title: '上传 Excel' },
-              { title: '查询线索' },
+              { title: '上传台账 Excel' },
+              { title: '查询系统线索' },
               { title: '查看结果' },
             ]}
           />
           <Divider />
           <Space direction="vertical" size={4} style={{ width: '100%' }}>
             <Text type="secondary">
-              流程：上传 Excel → VIN 查设备（getAllDeviceRelations）→ 按
-              device_id 查通过任务（getTaskList status=1）→ 判断是否丢失。
+              适配「易达安线索统计」模板：自动读取第 2 个
+              sheet（事故车线索台账），按车架号 +
+              事故发生时间查询系统是否在窗口内有通过线索。
             </Text>
             <Text type="secondary">
-              判定：若在「进店时间前 {windowDays} 天 ~
-              进店时间」内存在通过任务，则为 <Text type="success">未丢失</Text>
-              ；否则为 <Text type="danger">丢失</Text>。
+              流程：解析台账 → VIN 查设备（getAllDeviceRelations）→ 按 device_id
+              查通过任务（getTaskList status=1）→ 判定是否丢失。
+            </Text>
+            <Text type="secondary">
+              判定细化：仅「有设备且窗口内无通过线索」计为{' '}
+              <Text type="danger">疑似我方丢失</Text>
+              ；未绑定设备等可筛选排除，不混入丢失归因。是否安装以 VIN
+              查系统绑定为准，不采信台账「是否安装」。
             </Text>
           </Space>
           <Space style={{ marginTop: 12 }} wrap>
@@ -397,13 +703,15 @@ const AccidentLossPage: React.FC = () => {
             </p>
             <p className="ant-upload-text">点击或拖拽上传 Excel</p>
             <p className="ant-upload-hint">
-              需要包含列：车架号(VIN)、进店时间；可选列：设备号
+              请上传「易达安线索统计」类文件；将读取第 2 个
+              sheet，识别列：车架号、事故发生时间、收到线索日期、车牌号、车型等
             </p>
           </Dragger>
           {parsedRows.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <Text type="secondary">
-                已解析 {parsedRows.length} 行，点击“开始查询”执行校验。
+                已解析 {parsedRows.length}{' '}
+                行，点击“开始查询”按事故发生时间窗口校验。
               </Text>
             </div>
           )}
@@ -412,21 +720,62 @@ const AccidentLossPage: React.FC = () => {
         {results.length > 0 && (
           <Card title="查询结果">
             <Space wrap style={{ marginBottom: 12 }} align="center">
-              <Text>总计：{summary.total}</Text>
-              <Text type="success">未丢失：{summary.ok}</Text>
-              <Text type="danger">丢失：{summary.lost}</Text>
+              <Text>全部：{summary.total}</Text>
+              <Text type="success">未丢失：{summary.found}</Text>
+              <Text type="danger">疑似我方丢失：{summary.suspect}</Text>
+              <Text type="secondary">
+                未绑定设备：{summary.byCategory.no_device}
+              </Text>
+              {(summary.byCategory.invalid_time > 0 ||
+                summary.byCategory.query_error > 0) && (
+                <Text type="warning">
+                  异常：时间无效 {summary.byCategory.invalid_time} / 查询失败{' '}
+                  {summary.byCategory.query_error}
+                </Text>
+              )}
+            </Space>
+            <Space wrap style={{ marginBottom: 12 }} align="center">
+              <Text strong>结果筛选</Text>
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="全部类型"
+                style={{ minWidth: 420 }}
+                value={filterCategories}
+                onChange={(v) => setFilterCategories(v as ResultCategory[])}
+                options={ALL_CATEGORIES.map((c) => ({
+                  value: c,
+                  label: `${CATEGORY_META[c].label}（${summary.byCategory[c]}）`,
+                }))}
+              />
+              <Button
+                type="link"
+                onClick={() => setFilterCategories(DEFAULT_FILTER_CATEGORIES)}
+              >
+                仅疑似我方丢失
+              </Button>
+              <Button type="link" onClick={() => setFilterCategories([])}>
+                显示全部
+              </Button>
+              <Text type="secondary">当前列表：{summary.filtered} 行</Text>
               <Button
                 type="default"
                 icon={<DownloadOutlined />}
+                onClick={() => downloadResultsAsExcel(filteredResults)}
+              >
+                下载当前筛选结果
+              </Button>
+              <Button
+                type="link"
                 onClick={() => downloadResultsAsExcel(results)}
               >
-                下载查询结果
+                下载全部
               </Button>
             </Space>
             <Table<ResultRow>
-              rowKey={(r) => `${r.vin}-${r.in_time_dt}`}
+              rowKey={(r) => `${r.vin}-${r.accident_time_dt}-${r.seq ?? ''}`}
               columns={columns as any}
-              dataSource={results}
+              dataSource={filteredResults}
               loading={loading}
               size="small"
               scroll={{ x: 'max-content' }}
