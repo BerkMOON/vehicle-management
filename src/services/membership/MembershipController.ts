@@ -1,10 +1,9 @@
 import type { ResponseInfoType } from '@/types/common';
 import { request } from '@umijs/max';
+import { getMembershipErrorMessage, MembershipBizCode } from './error';
 import type {
   ApplePaymentBinding,
-  CreateManualRefundParams,
   CreatePriceParams,
-  GrantMembershipParams,
   InboxEventDetail,
   MembershipBenefit,
   MembershipListData,
@@ -20,8 +19,7 @@ import type {
   PaymentOrderDetail,
   PaymentPrice,
   PaymentRefund,
-  RevokeMembershipParams,
-  SalesSummaryRow,
+  SalesSummaryReport,
   UpsertBenefitParams,
   UpsertProductParams,
   UpsertSkuParams,
@@ -29,6 +27,7 @@ import type {
 } from './typings';
 
 const API_PREFIX = '/api/admin/membership';
+const MAX_PAGE_LIMIT = 200;
 
 export const MembershipAPI = {
   listProducts: (params?: PageQuery) =>
@@ -38,7 +37,7 @@ export const MembershipAPI = {
     ),
 
   getProduct: (product_code: string) =>
-    request<ResponseInfoType<MembershipProduct>>(
+    request<ResponseInfoType<MembershipProduct | null>>(
       `${API_PREFIX}/products/detail`,
       { method: 'GET', params: { product_code } },
     ),
@@ -122,7 +121,7 @@ export const MembershipAPI = {
     ),
 
   getMembershipOrderDetail: (membership_order_no: string) =>
-    request<ResponseInfoType<MembershipOrderDetail>>(
+    request<ResponseInfoType<MembershipOrderDetail | null>>(
       `${API_PREFIX}/orders/detail`,
       { method: 'GET', params: { membership_order_no } },
     ),
@@ -134,28 +133,19 @@ export const MembershipAPI = {
     ),
 
   getPaymentOrderDetail: (order_no: string) =>
-    request<ResponseInfoType<PaymentOrderDetail>>(
+    request<ResponseInfoType<PaymentOrderDetail | null>>(
       `${API_PREFIX}/payments/detail`,
       { method: 'GET', params: { order_no } },
     ),
 
-  getUserMembershipStatus: (params: { user_id?: number; phone?: string }) =>
+  getUserMembershipStatus: (params: {
+    user_id?: number;
+    user_phone?: string;
+  }) =>
     request<ResponseInfoType<UserMembershipStatus>>(
       `${API_PREFIX}/users/status`,
       { method: 'GET', params },
     ),
-
-  grantMembership: (data: GrantMembershipParams) =>
-    request<ResponseInfoType<{ membership_order_no: string }>>(
-      `${API_PREFIX}/users/grant`,
-      { method: 'POST', data },
-    ),
-
-  revokeMembership: (data: RevokeMembershipParams) =>
-    request<ResponseInfoType<null>>(`${API_PREFIX}/users/revoke`, {
-      method: 'POST',
-      data,
-    }),
 
   listRefunds: (params?: PageQuery) =>
     request<ResponseInfoType<MembershipListData<PaymentRefund>>>(
@@ -164,15 +154,12 @@ export const MembershipAPI = {
     ),
 
   getRefundDetail: (refund_no: string) =>
-    request<ResponseInfoType<PaymentRefund>>(`${API_PREFIX}/refunds/detail`, {
-      method: 'GET',
-      params: { refund_no },
-    }),
-
-  createManualRefund: (data: CreateManualRefundParams) =>
-    request<ResponseInfoType<{ refund_no: string }>>(
-      `${API_PREFIX}/refunds/create`,
-      { method: 'POST', data },
+    request<ResponseInfoType<PaymentRefund | null>>(
+      `${API_PREFIX}/refunds/detail`,
+      {
+        method: 'GET',
+        params: { refund_no },
+      },
     ),
 
   listInboxEvents: (params?: PageQuery) =>
@@ -182,16 +169,10 @@ export const MembershipAPI = {
     ),
 
   getInboxEventDetail: (id: number) =>
-    request<ResponseInfoType<InboxEventDetail>>(
+    request<ResponseInfoType<InboxEventDetail | null>>(
       `${API_PREFIX}/inbox/events/detail`,
       { method: 'GET', params: { id } },
     ),
-
-  replayInboxEvent: (data: { id: number }) =>
-    request<ResponseInfoType<null>>(`${API_PREFIX}/inbox/events/replay`, {
-      method: 'POST',
-      data,
-    }),
 
   listAppleBindings: (params?: PageQuery) =>
     request<ResponseInfoType<MembershipListData<ApplePaymentBinding>>>(
@@ -212,7 +193,7 @@ export const MembershipAPI = {
     ),
 
   salesSummary: (params: { start_time: string; end_time: string }) =>
-    request<ResponseInfoType<SalesSummaryRow[]>>(
+    request<ResponseInfoType<SalesSummaryReport>>(
       `${API_PREFIX}/reports/sales-summary`,
       { method: 'GET', params },
     ),
@@ -224,14 +205,17 @@ export async function fetchMembershipList<T>(
   ) => Promise<ResponseInfoType<MembershipListData<T>>>,
   params: Record<string, unknown>,
 ) {
-  const { page = 1, limit = 10, ...rest } = params;
+  const { page = 1, limit = 20, ...rest } = params;
+  const safePage = Math.max(1, Number(page) || 1);
+  const safeLimit = Math.min(Math.max(1, Number(limit) || 20), MAX_PAGE_LIMIT);
   const res = await apiFn({
-    page: Number(page) || 1,
-    limit: Number(limit) || 10,
+    page: safePage,
+    limit: safeLimit,
     ...rest,
   });
-  if (res?.response_status?.code !== 200) {
-    throw new Error(res?.response_status?.msg || '查询失败');
+  const code = res?.response_status?.code;
+  if (code !== MembershipBizCode.SUCCESS) {
+    throw new Error(getMembershipErrorMessage(code, res?.response_status?.msg));
   }
   return {
     list: res.data?.list ?? [],

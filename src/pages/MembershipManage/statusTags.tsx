@@ -1,8 +1,12 @@
 import {
   CLOSE_TASK_STATUS,
   ENTITLEMENT_STATUS,
+  IDEMPOTENCY_STATE,
+  INBOX_PROCESS_STATUS,
+  INBOX_VERIFY_STATUS,
   MEM_STATUS,
   PAY_STATUS,
+  PRICE_STATUS,
   PRODUCT_STATUS,
   REFUND_STATUS,
 } from '@/services/membership/constants';
@@ -28,6 +32,12 @@ const PRODUCT_STATUS_COLOR: Record<number, string> = {
   3: 'blue',
 };
 
+const PRICE_STATUS_COLOR: Record<number, string> = {
+  0: 'default',
+  1: 'green',
+  2: 'red',
+};
+
 const PAY_STATUS_COLOR: Record<number, string> = {
   1: 'gold',
   2: 'green',
@@ -45,6 +55,7 @@ const MEM_STATUS_COLOR: Record<number, string> = {
 };
 
 const ENTITLEMENT_STATUS_COLOR: Record<number, string> = {
+  0: 'default',
   1: 'green',
   2: 'default',
   3: 'red',
@@ -61,33 +72,15 @@ const CLOSE_TASK_STATUS_COLOR: Record<number, string> = {
   2: 'green',
 };
 
-const INBOX_PROCESS_STATUS: Record<number, string> = {
-  1: '待处理',
-  3: '已处理',
-  4: '重试中',
-};
-
 const INBOX_PROCESS_STATUS_COLOR: Record<number, string> = {
+  0: 'default',
   1: 'gold',
-  3: 'green',
-  4: 'orange',
-};
-
-const INBOX_VERIFY_STATUS: Record<number, string> = {
-  1: '待验签',
-  2: '验签成功',
-  3: '验签失败',
+  2: 'green',
 };
 
 const INBOX_VERIFY_STATUS_COLOR: Record<number, string> = {
-  1: 'gold',
-  2: 'green',
-  3: 'red',
-};
-
-const IDEMPOTENCY_STATE: Record<number, string> = {
-  1: '处理中',
-  2: '已完成',
+  0: 'default',
+  1: 'green',
 };
 
 const IDEMPOTENCY_STATE_COLOR: Record<number, string> = {
@@ -97,6 +90,10 @@ const IDEMPOTENCY_STATE_COLOR: Record<number, string> = {
 
 export function renderProductStatusTag(value?: number | null) {
   return renderStatusTag(value, PRODUCT_STATUS, PRODUCT_STATUS_COLOR);
+}
+
+export function renderPriceStatusTag(value?: number | null) {
+  return renderStatusTag(value, PRICE_STATUS, PRICE_STATUS_COLOR);
 }
 
 export function renderPayStatusTag(value?: number | null) {

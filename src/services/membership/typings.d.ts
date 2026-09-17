@@ -134,6 +134,8 @@ export interface PaymentRefund {
   reason: string;
   requested_at?: string;
   completed_at?: string;
+  /** 仅详情返回；列表无此字段 */
+  provider_response?: string;
   ctime: string;
   mtime: string;
 }
@@ -185,13 +187,41 @@ export interface PaymentIdempotency {
   operation: string;
   state: number;
   result_code: number;
+  request_fingerprint?: string;
+  lease_until?: string;
   ctime: string;
   mtime: string;
 }
 
+/** 报表毛收入行 */
+export interface SalesGrossRow {
+  provider: string;
+  client_platform: string;
+  currency: string;
+  order_count: number;
+  amount_minor: number;
+}
+
+/** 报表退款行 */
+export interface SalesRefundRow {
+  provider: string;
+  client_platform: string;
+  currency: string;
+  refund_count: number;
+  refund_amount_minor: number;
+}
+
+/** GET /reports/sales-summary 的 data；净额 = gross − refund，前端自算 */
+export interface SalesSummaryReport {
+  gross: SalesGrossRow[];
+  refund: SalesRefundRow[];
+}
+
+/** @deprecated 使用 SalesGrossRow / SalesSummaryReport */
 export interface SalesSummaryRow {
   provider: string;
   client_platform: string;
+  currency?: string;
   order_count: number;
   amount_minor: number;
 }
@@ -215,14 +245,16 @@ export interface PaymentOrderDetail {
 }
 
 export interface InboxEventDetail {
-  event: PaymentEventInbox & { raw_body?: string };
+  event: PaymentEventInbox;
+  /** 原始回调报文在响应顶层，不在 event 内；可能被截断并以 ...(truncated) 结尾 */
+  raw_body?: string;
 }
 
 export type PageQuery = PageInfoParams & Record<string, unknown>;
 
 export interface UpsertProductParams {
   product_code: string;
-  product_name: string;
+  product_name?: string;
   description?: string;
   level_rank?: number;
   is_sellable?: number;
@@ -231,9 +263,9 @@ export interface UpsertProductParams {
 }
 
 export interface UpsertSkuParams {
-  product_code: string;
+  product_code?: string;
   sku_code: string;
-  sku_name: string;
+  sku_name?: string;
   billing_mode?: string;
   period_unit?: string;
   period_count?: number;
@@ -256,23 +288,4 @@ export interface UpsertBenefitParams {
   benefit_code: string;
   benefit_config?: string;
   status?: number;
-}
-
-export interface GrantMembershipParams {
-  user_id?: number;
-  phone?: string;
-  product_code: string;
-  sku_code: string;
-  reason?: string;
-}
-
-export interface RevokeMembershipParams {
-  user_id?: number;
-  phone?: string;
-  reason?: string;
-}
-
-export interface CreateManualRefundParams {
-  payment_order_no: string;
-  reason?: string;
 }

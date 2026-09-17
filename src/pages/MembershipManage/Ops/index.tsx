@@ -1,18 +1,23 @@
 import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
-import { SuccessCode } from '@/constants';
 import {
   fetchMembershipList,
   MembershipAPI,
 } from '@/services/membership/MembershipController';
 import {
   formatAmountMinor,
+  INBOX_PROCESS_STATUS_OPTIONS,
   PROVIDER_OPTIONS,
 } from '@/services/membership/constants';
+import {
+  getMembershipErrorMessage,
+  MembershipBizCode,
+} from '@/services/membership/error';
 import type { PaymentEventInbox } from '@/services/membership/typings';
 import { Navigate, useAccess } from '@umijs/max';
 import {
+  Alert,
   Button,
   Col,
   DatePicker,
@@ -21,7 +26,6 @@ import {
   Form,
   Input,
   message,
-  Modal,
   Result,
   Select,
   Spin,
@@ -39,7 +43,6 @@ import {
 import {
   formatDateTime,
   MEMBERSHIP_FIELD_WIDTH,
-  postMembershipAction,
   renderDateTime,
 } from '../utils';
 
@@ -53,34 +56,34 @@ const InboxTab: React.FC = () => {
     null,
   );
   const [rawBody, setRawBody] = useState('');
+  const [notFound, setNotFound] = useState(false);
 
   const openDetail = async (record: PaymentEventInbox) => {
     setDrawerOpen(true);
     setLoading(true);
+    setEventDetail(null);
+    setRawBody('');
+    setNotFound(false);
     try {
       const res = await MembershipAPI.getInboxEventDetail(record.id);
-      if (res?.response_status?.code === SuccessCode.SUCCESS && res.data) {
+      const code = res?.response_status?.code;
+      if (code === MembershipBizCode.SUCCESS && res.data?.event) {
         setEventDetail(res.data.event);
-        setRawBody((res.data.event as { raw_body?: string }).raw_body ?? '');
+        // raw_body 在响应顶层，不在 event 内
+        setRawBody(res.data.raw_body ?? '');
+        return;
       }
+      if (code === MembershipBizCode.SUCCESS && !res.data) {
+        setNotFound(true);
+        return;
+      }
+      message.error(getMembershipErrorMessage(code, res?.response_status?.msg));
     } finally {
       setLoading(false);
     }
   };
 
-  const replay = (record: PaymentEventInbox) => {
-    Modal.confirm({
-      title: '确认重放该事件？',
-      content: `event_id: ${record.event_id}`,
-      onOk: async () => {
-        await postMembershipAction(
-          () => MembershipAPI.replayInboxEvent({ id: record.id }),
-          '已加入重试队列',
-        );
-        ref.current?.getData();
-      },
-    });
-  };
+  const rawBodyTruncated = rawBody.endsWith('...(truncated)');
 
   return (
     <>
@@ -113,10 +116,11 @@ const InboxTab: React.FC = () => {
             </Col>
             <Col>
               <Form.Item name="process_status" label="处理状态">
-                <Input
+                <Select
                   allowClear
                   style={MEMBERSHIP_FIELD_WIDTH}
-                  placeholder="1/3/4 等"
+                  placeholder="请选择处理状态"
+                  options={INBOX_PROCESS_STATUS_OPTIONS}
                 />
               </Form.Item>
             </Col>
@@ -137,6 +141,12 @@ const InboxTab: React.FC = () => {
           { title: '事件类型', dataIndex: 'event_type' },
           { title: 'PAY 单号', dataIndex: 'order_no' },
           {
+            title: '验签',
+            dataIndex: 'verify_status',
+            width: 90,
+            render: renderInboxVerifyStatusTag,
+          },
+          {
             title: '处理状态',
             dataIndex: 'process_status',
             width: 90,
@@ -148,11 +158,7 @@ const InboxTab: React.FC = () => {
           {
             title: '操作',
             render: (_: unknown, record: PaymentEventInbox) => (
-              <>
-                <a onClick={() => openDetail(record)}>详情</a>
-                {' · '}
-                <a onClick={() => replay(record)}>重放</a>
-              </>
+              <a onClick={() => openDetail(record)}>详情</a>
             ),
           },
         ]}
@@ -164,6 +170,7 @@ const InboxTab: React.FC = () => {
         onClose={() => setDrawerOpen(false)}
       >
         <Spin spinning={loading}>
+          {notFound && <Alert type="warning" showIcon message="事件不存在" />}
           {eventDetail && (
             <>
               <Descriptions column={1} bordered size="small">
@@ -187,6 +194,14 @@ const InboxTab: React.FC = () => {
                 </Descriptions.Item>
               </Descriptions>
               <h4 style={{ marginTop: 16 }}>raw_body</h4>
+              {rawBodyTruncated && (
+                <Alert
+                  style={{ marginBottom: 8 }}
+                  type="info"
+                  showIcon
+                  message="原始报文已截断（超过 512 字节）"
+                />
+              )}
               <pre
                 style={{
                   background: '#f5f5f5',
@@ -241,6 +256,15 @@ const AppleBindingTab: React.FC = () => (
             />
           </Form.Item>
         </Col>
+        <Col>
+          <Form.Item name="user_id" label="用户 ID">
+            <Input
+              allowClear
+              style={MEMBERSHIP_FIELD_WIDTH}
+              placeholder="请输入用户 ID"
+            />
+          </Form.Item>
+        </Col>
       </>
     }
     columns={[
@@ -269,8 +293,8 @@ const CloseTaskTab: React.FC = () => (
             style={MEMBERSHIP_FIELD_WIDTH}
             placeholder="请选择状态"
             options={[
-              { label: '待处理', value: 1 },
-              { label: '已完成', value: 2 },
+              { label: '待关', value: 1 },
+              { label: '已处理', value: 2 },
             ]}
           />
         </Form.Item>
@@ -333,25 +357,95 @@ const SalesSummaryTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<
     {
+      key: string;
       provider: string;
       client_platform: string;
+      currency: string;
       order_count: number;
       amount_minor: number;
+      refund_count: number;
+      refund_amount_minor: number;
+      net_amount_minor: number;
     }[]
   >([]);
 
   const query = async () => {
     const values = await form.validateFields();
+    const start = dayjs(values.range[0]);
+    const end = dayjs(values.range[1]);
+    if (end.diff(start, 'day') > 366) {
+      message.warning('查询跨度不能超过 366 天');
+      return;
+    }
     setLoading(true);
     try {
+      // end_time 传纯日期时后端会扩展到当天 23:59:59
       const res = await MembershipAPI.salesSummary({
-        start_time: dayjs(values.range[0]).format('YYYY-MM-DD HH:mm:ss'),
-        end_time: dayjs(values.range[1]).format('YYYY-MM-DD HH:mm:ss'),
+        start_time: start.format('YYYY-MM-DD'),
+        end_time: end.format('YYYY-MM-DD'),
       });
-      if (res?.response_status?.code === SuccessCode.SUCCESS) {
-        setRows(res.data ?? []);
+      const code = res?.response_status?.code;
+      if (code === MembershipBizCode.SUCCESS) {
+        const report = res.data ?? { gross: [], refund: [] };
+        const map = new Map<
+          string,
+          {
+            key: string;
+            provider: string;
+            client_platform: string;
+            currency: string;
+            order_count: number;
+            amount_minor: number;
+            refund_count: number;
+            refund_amount_minor: number;
+            net_amount_minor: number;
+          }
+        >();
+        const dimKey = (p: string, plat: string, cur: string) =>
+          `${p}|${plat}|${cur}`;
+
+        for (const g of report.gross ?? []) {
+          const key = dimKey(
+            g.provider,
+            g.client_platform,
+            g.currency || 'CNY',
+          );
+          map.set(key, {
+            key,
+            provider: g.provider,
+            client_platform: g.client_platform,
+            currency: g.currency || 'CNY',
+            order_count: g.order_count || 0,
+            amount_minor: g.amount_minor || 0,
+            refund_count: 0,
+            refund_amount_minor: 0,
+            net_amount_minor: g.amount_minor || 0,
+          });
+        }
+        for (const r of report.refund ?? []) {
+          const currency = r.currency || 'CNY';
+          const key = dimKey(r.provider, r.client_platform, currency);
+          const row = map.get(key) ?? {
+            key,
+            provider: r.provider,
+            client_platform: r.client_platform,
+            currency,
+            order_count: 0,
+            amount_minor: 0,
+            refund_count: 0,
+            refund_amount_minor: 0,
+            net_amount_minor: 0,
+          };
+          row.refund_count = r.refund_count || 0;
+          row.refund_amount_minor = r.refund_amount_minor || 0;
+          row.net_amount_minor = row.amount_minor - row.refund_amount_minor;
+          map.set(key, row);
+        }
+        setRows(Array.from(map.values()));
       } else {
-        message.error(res?.response_status?.msg || '查询失败');
+        message.error(
+          getMembershipErrorMessage(code, res?.response_status?.msg),
+        );
       }
     } finally {
       setLoading(false);
@@ -360,13 +454,20 @@ const SalesSummaryTab: React.FC = () => {
 
   return (
     <div style={tabContentStyle}>
+      <Alert
+        style={{ marginBottom: 16 }}
+        type="info"
+        showIcon
+        message="口径说明"
+        description="毛收入按当前仍为成功的支付单 paid_at；退款后 PAY 变为已退款时该笔会从毛收入消失。退款按退款单 completed_at。净额 = 毛收入 − 退款（前端计算）。"
+      />
       <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
         <Form.Item
           name="range"
-          label="支付时间"
+          label="统计区间"
           rules={[{ required: true, message: '请选择时间范围' }]}
         >
-          <DatePicker.RangePicker showTime />
+          <DatePicker.RangePicker />
         </Form.Item>
         <Form.Item>
           <Button type="primary" onClick={query} loading={loading}>
@@ -375,18 +476,30 @@ const SalesSummaryTab: React.FC = () => {
         </Form.Item>
       </Form>
       <Table
-        rowKey={(r) => `${r.provider}-${r.client_platform}`}
+        rowKey="key"
         loading={loading}
         dataSource={rows}
         pagination={false}
         columns={[
           { title: '渠道', dataIndex: 'provider' },
           { title: '平台', dataIndex: 'client_platform' },
-          { title: '订单数', dataIndex: 'order_count' },
+          { title: '币种', dataIndex: 'currency', width: 80 },
+          { title: '成交笔数', dataIndex: 'order_count' },
           {
-            title: '销售额',
+            title: '毛收入',
             dataIndex: 'amount_minor',
-            render: (v: number) => formatAmountMinor(v),
+            render: (v: number, r) => formatAmountMinor(v, r.currency),
+          },
+          { title: '退款笔数', dataIndex: 'refund_count' },
+          {
+            title: '退款额',
+            dataIndex: 'refund_amount_minor',
+            render: (v: number, r) => formatAmountMinor(v, r.currency),
+          },
+          {
+            title: '净额',
+            dataIndex: 'net_amount_minor',
+            render: (v: number, r) => formatAmountMinor(v, r.currency),
           },
         ]}
       />

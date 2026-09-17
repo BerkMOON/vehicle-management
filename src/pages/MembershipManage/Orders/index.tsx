@@ -1,7 +1,6 @@
 import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
-import { SuccessCode } from '@/constants';
 import {
   fetchMembershipList,
   MembershipAPI,
@@ -10,17 +9,23 @@ import {
   formatAmountMinor,
   MEM_STATUS_OPTIONS,
 } from '@/services/membership/constants';
+import {
+  getMembershipErrorMessage,
+  MembershipBizCode,
+} from '@/services/membership/error';
 import type {
   MembershipOrder,
   MembershipOrderDetail,
 } from '@/services/membership/typings';
 import { Navigate, useAccess } from '@umijs/max';
 import {
+  Alert,
   Col,
   Descriptions,
   Drawer,
   Form,
   Input,
+  message,
   Result,
   Select,
   Spin,
@@ -44,18 +49,27 @@ const MembershipOrdersPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<MembershipOrderDetail | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const openDetail = async (record: MembershipOrder) => {
     setDrawerOpen(true);
     setLoading(true);
     setDetail(null);
+    setNotFound(false);
     try {
       const res = await MembershipAPI.getMembershipOrderDetail(
         record.membership_order_no,
       );
-      if (res?.response_status?.code === SuccessCode.SUCCESS && res.data) {
+      const code = res?.response_status?.code;
+      if (code === MembershipBizCode.SUCCESS && res.data) {
         setDetail(res.data);
+        return;
       }
+      if (code === MembershipBizCode.SUCCESS && !res.data) {
+        setNotFound(true);
+        return;
+      }
+      message.error(getMembershipErrorMessage(code, res?.response_status?.msg));
     } finally {
       setLoading(false);
     }
@@ -81,7 +95,7 @@ const MembershipOrdersPage: React.FC = () => {
                 <Input
                   allowClear
                   style={MEMBERSHIP_FIELD_WIDTH}
-                  placeholder="请输入手机号"
+                  placeholder="请输入完整手机号"
                 />
               </Form.Item>
             </Col>
@@ -91,6 +105,15 @@ const MembershipOrdersPage: React.FC = () => {
                   allowClear
                   style={MEMBERSHIP_FIELD_WIDTH}
                   placeholder="请输入 MEM 单号"
+                />
+              </Form.Item>
+            </Col>
+            <Col>
+              <Form.Item name="checkout_session_id" label="会话 ID">
+                <Input
+                  allowClear
+                  style={MEMBERSHIP_FIELD_WIDTH}
+                  placeholder="checkout_session_id"
                 />
               </Form.Item>
             </Col>
@@ -156,6 +179,7 @@ const MembershipOrdersPage: React.FC = () => {
         onClose={() => setDrawerOpen(false)}
       >
         <Spin spinning={loading}>
+          {notFound && <Alert type="warning" showIcon message="业务单不存在" />}
           {detail?.order && (
             <>
               <Descriptions column={2} bordered size="small">

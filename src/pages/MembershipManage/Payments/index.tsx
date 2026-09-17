@@ -1,7 +1,6 @@
 import BaseListPage, {
   BaseListPageRef,
 } from '@/components/BasicComponents/BaseListPage';
-import { SuccessCode } from '@/constants';
 import {
   fetchMembershipList,
   MembershipAPI,
@@ -12,17 +11,23 @@ import {
   PLATFORM_OPTIONS,
   PROVIDER_OPTIONS,
 } from '@/services/membership/constants';
+import {
+  getMembershipErrorMessage,
+  MembershipBizCode,
+} from '@/services/membership/error';
 import type {
   PaymentOrder,
   PaymentOrderDetail,
 } from '@/services/membership/typings';
 import { Navigate, useAccess } from '@umijs/max';
 import {
+  Alert,
   Col,
   Descriptions,
   Drawer,
   Form,
   Input,
+  message,
   Result,
   Select,
   Spin,
@@ -42,16 +47,25 @@ const PaymentOrdersPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<PaymentOrderDetail | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const openDetail = async (record: PaymentOrder) => {
     setDrawerOpen(true);
     setLoading(true);
     setDetail(null);
+    setNotFound(false);
     try {
       const res = await MembershipAPI.getPaymentOrderDetail(record.order_no);
-      if (res?.response_status?.code === SuccessCode.SUCCESS && res.data) {
+      const code = res?.response_status?.code;
+      if (code === MembershipBizCode.SUCCESS && res.data) {
         setDetail(res.data);
+        return;
       }
+      if (code === MembershipBizCode.SUCCESS && !res.data) {
+        setNotFound(true);
+        return;
+      }
+      message.error(getMembershipErrorMessage(code, res?.response_status?.msg));
     } finally {
       setLoading(false);
     }
@@ -86,7 +100,7 @@ const PaymentOrdersPage: React.FC = () => {
                 <Input
                   allowClear
                   style={MEMBERSHIP_FIELD_WIDTH}
-                  placeholder="请输入手机号"
+                  placeholder="请输入完整手机号"
                 />
               </Form.Item>
             </Col>
@@ -161,6 +175,7 @@ const PaymentOrdersPage: React.FC = () => {
         onClose={() => setDrawerOpen(false)}
       >
         <Spin spinning={loading}>
+          {notFound && <Alert type="warning" showIcon message="支付单不存在" />}
           {detail?.order && (
             <>
               <Descriptions column={2} bordered size="small">
@@ -233,6 +248,12 @@ const PaymentOrdersPage: React.FC = () => {
                     render: renderRefundStatusTag,
                   },
                   { title: '原因', dataIndex: 'reason' },
+                  {
+                    title: '渠道回包',
+                    dataIndex: 'provider_response',
+                    ellipsis: true,
+                    render: (v?: string) => v || '-',
+                  },
                 ]}
               />
             </>
